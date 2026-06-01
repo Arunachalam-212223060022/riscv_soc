@@ -1,0 +1,6 @@
+create_clock -period 83.333 -name sys_clk [get_ports clk]
+set_false_path -from [get_ports rst_n]
+set_input_delay  -clock sys_clk -max 2.0 [get_ports {gpio_in[*]}]
+set_input_delay  -clock sys_clk -min 0.5 [get_ports {gpio_in[*]}]
+set_output_delay -clock sys_clk -max 2.0 [get_ports {gpio_out[*] uart_tx}]
+set_output_delay -clock sys_clk -min 0.5 [get_ports {gpio_out[*] uart_tx}]
