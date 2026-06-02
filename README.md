@@ -97,40 +97,10 @@ This project is a **complete RTL-to-GDSII implementation** of a RISC-V RV32I Sys
 
 ## 2. SoC Architecture
 
-```
-╔══════════════════════════════════════════════════════════════╗
-║                    RISC-V CPU Core (cpu_top)                 ║
-║                                                              ║
-║  ┌────┐  ┌────────┐  ┌───────┐  ┌──────────┐  ┌─────────┐  ║
-║  │ PC │→ │  IMEM  │→ │ImmGen │  │ RegFile  │  │ Control │  ║
-║  └────┘  │ (fetch)│  │       │  │(32×32 RF)│  │ Decoder │  ║
-║          └────────┘  └───┬───┘  └────┬─────┘  └────┬────┘  ║
-║                          │           │              │        ║
-║                     ┌────▼───────────▼──────────────▼────┐  ║
-║                     │         ALU + ALU_CTRL              │  ║
-║                     │   (ADD/SUB/AND/OR/XOR/SLT/shifts)   │  ║
-║                     └──────────────┬──────────────────────┘  ║
-╚════════════════════════════════════║═════════════════════════╝
-                                     ║ dbus_addr / dbus_wdata
-                                     ║ dbus_we[3:0] / dbus_re
-                                     ║ dbus_rdata
-                          ┌──────────▼──────────────┐
-                          │   Address Decode Logic   │
-                          │   (combinational mux)    │
-                          └──┬──┬──┬──┬──┬──┬───────┘
-                  ┌──────────┘  │  │  │  │  └──────────┐
-              ┌───▼───┐  ┌──▼──┐│  │ ┌▼───┐  ┌──────┐  ┌▼──┐
-              │ DMEM  │  │UART ││  │ │GPIO│  │TIMER │  │SPI│
-              │ 8 KB  │  │TX/RX││  │ │8-bit│  │count │  │   │
-              └───────┘  └─────┘│  │ └────┘  └──┬───┘  └───┘
-                           ┌────┘  └──────┐      │
-                         ┌─▼──┐        ┌──▼──┐   │ IRQ
-                         │ I2C│        │INTC │◄──┘
-                         └────┘        │     │◄── uart_irq
-                                       └──┬──┘◄── spi_irq
-                                          │       i2c_irq
-                                     irq_to_cpu
-```
+<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/90ce47ce-e725-4b3f-b60c-22cb22e34dab" />
+
+<img width="1440" height="2350" alt="image" src="https://github.com/user-attachments/assets/4515c943-f6f7-4383-92a2-bba3529ce053" />
+
 
 ### Address Map
 
@@ -158,6 +128,9 @@ assign dbus_rdata = dmem_sel  ? dmem_rdata  :
 ---
 
 ## 3. Module Breakdown
+
+<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/39f2ae22-302c-4ca5-b05a-a2547cc6327a" />
+
 
 ### 3.1 RISC-V CPU Core
 
@@ -320,6 +293,9 @@ assign dbus_we = mem_write ? (
 ---
 
 ### 3.3 Peripheral Subsystem
+
+<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/212fc6e3-9bfc-4106-9c31-93edbaa39ca0" />
+
 
 All peripherals follow an identical interface pattern: memory-mapped registers, a chip-select signal from `soc_top`'s address decoder, a 32-bit read-data bus, and an optional IRQ output to the interrupt controller. This regularity makes each peripheral a drop-in, independently testable IP block.
 
@@ -546,51 +522,7 @@ riscv_soc/
 
 ## 5. Complete Design Flow
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│                      SOURCE: Verilog/SV RTL                        │
-│                          rtl/ directory                            │
-└──────────────────┬─────────────────────────────────┬──────────────┘
-                   │                                 │
-        ┌──────────▼──────────┐           ┌──────────▼──────────┐
-        │   SIMULATION FLOW   │           │      FPGA FLOW       │
-        │                     │           │   (Xilinx Vivado)    │
-        │  ┌───────────────┐  │           │                      │
-        │  │ Synopsys VCS  │  │           │  Synthesis           │
-        │  │  + Verdi      │  │           │  (technology map     │
-        │  │  Waveforms    │  │           │   to LUT/FF)         │
-        │  └───────────────┘  │           │         ↓            │
-        │  ┌───────────────┐  │           │  Implementation      │
-        │  │ Cadence       │  │           │  (place + route      │
-        │  │ NCLaunch      │  │           │   on FPGA fabric)    │
-        │  │ (wire-fixed   │  │           │         ↓            │
-        │  │  RTL)         │  │           │  Bitstream Gen       │
-        │  └───────────────┘  │           │         ↓            │
-        │  ┌───────────────┐  │           │  Program Boolean     │
-        │  │ Vivado XSim   │  │           │  Board ✓ TESTED      │
-        │  └───────────────┘  │           └─────────────────────┘
-        └─────────────────────┘
-                                           ┌─────────────────────┐
-                                           │      ASIC FLOW       │
-                                           │                     │
-                              (wire-fixed  │  Cadence Genus      │
-                               RTL from    │  Logic Synthesis     │
-                               synthesis/  │  - std cell lib      │
-                               genus/rtl/) │  - syn_generic       │
-                                           │  - syn_map           │
-                                           │  - syn_opt           │
-                                           │  → Netlist + SDC     │
-                                           │         ↓           │
-                                           │  Cadence Innovus    │
-                                           │  Place & Route       │
-                                           │  - Floorplan         │
-                                           │  - Power plan        │
-                                           │  - Placement         │
-                                           │  - CTS               │
-                                           │  - Routing           │
-                                           │  → GDSII ✓          │
-                                           └─────────────────────┘
-```
+<img width="1440" height="1820" alt="image" src="https://github.com/user-attachments/assets/ecf5653c-3b18-494f-94fc-88ebcae6ba1c" />
 
 ### Why Two RTL Versions?
 
