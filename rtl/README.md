@@ -1,512 +1,191 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RISC-V SoC — RTL Source Code</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #0d1117;
-    --bg2: #161b22;
-    --bg3: #1c2128;
-    --border: #30363d;
-    --border2: #484f58;
-    --text: #e6edf3;
-    --text2: #8b949e;
-    --text3: #6e7681;
-    --green: #3fb950;
-    --green-dim: #1a3a22;
-    --green-text: #7ee787;
-    --blue: #58a6ff;
-    --blue-dim: #0d2140;
-    --blue-text: #79c0ff;
-    --amber: #d29922;
-    --amber-dim: #2d2008;
-    --amber-text: #e3b341;
-    --purple: #bc8cff;
-    --purple-dim: #1f1335;
-    --purple-text: #d2a8ff;
-    --coral: #f78166;
-    --coral-dim: #3d1a14;
-    --coral-text: #ffa198;
-    --teal: #39d353;
-    --teal-dim: #0d2d18;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'IBM Plex Sans', sans-serif;
-  }
+<div align="center">
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+# RTL Source — RISC-V RV32I SoC
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 15px;
-    line-height: 1.7;
-    padding: 0;
-  }
+**A complete 32-bit RISC-V processor built from scratch in synthesisable Verilog**
+**CPU Core · Memories · Seven Peripherals · Single-Cycle · Memory-Mapped I/O**
 
-  /* ── HERO ── */
-  .hero {
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    padding: 60px 48px 40px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hero::before {
-    content: '';
-    position: absolute;
-    top: -60px; right: -80px;
-    width: 420px; height: 420px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(63,185,80,0.07) 0%, transparent 70%);
-    pointer-events: none;
-  }
-  .hero-eyebrow {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--green);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 14px;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .hero-eyebrow::before {
-    content: '';
-    display: inline-block;
-    width: 28px; height: 1px;
-    background: var(--green);
-  }
-  .hero h1 {
-    font-family: var(--mono);
-    font-size: 38px;
-    font-weight: 600;
-    color: var(--text);
-    letter-spacing: -0.02em;
-    line-height: 1.15;
-    margin-bottom: 16px;
-  }
-  .hero h1 span { color: var(--green); }
-  .hero-desc {
-    font-size: 16px;
-    color: var(--text2);
-    max-width: 560px;
-    line-height: 1.7;
-    margin-bottom: 28px;
-  }
-  .badge-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .badge {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 20px;
-    border: 1px solid;
-    letter-spacing: 0.04em;
-  }
-  .badge-green  { color: var(--green-text);  border-color: var(--green);  background: var(--green-dim); }
-  .badge-blue   { color: var(--blue-text);   border-color: var(--blue);   background: var(--blue-dim); }
-  .badge-amber  { color: var(--amber-text);  border-color: var(--amber);  background: var(--amber-dim); }
-  .badge-purple { color: var(--purple-text); border-color: var(--purple); background: var(--purple-dim); }
+[![ISA](https://img.shields.io/badge/ISA-RISC--V%20RV32I-blue?style=for-the-badge)](https://riscv.org/)
+[![Instructions](https://img.shields.io/badge/Instructions-37%20RV32I-blueviolet?style=for-the-badge)](#instruction-set--rv32i-37-instructions)
+[![Clock](https://img.shields.io/badge/Target%20Clock-100%20MHz-orange?style=for-the-badge)](#synthesis--timing-constraints)
+[![Memory](https://img.shields.io/badge/Memory-16%20KB%20Total-green?style=for-the-badge)](#memory-subsystem--memory)
+[![Peripherals](https://img.shields.io/badge/Peripherals-7%20IPs-red?style=for-the-badge)](#peripherals--peripheral)
+[![DRC](https://img.shields.io/badge/DRC-0%20Violations-brightgreen?style=for-the-badge)](../fpga/README.md)
 
-  /* ── LAYOUT ── */
-  .container { max-width: 900px; margin: 0 auto; padding: 48px 48px; }
-
-  /* ── SECTION HEADER ── */
-  .section-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-bottom: 6px;
-  }
-  .section-title {
-    font-family: var(--mono);
-    font-size: 22px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  section { margin-bottom: 56px; }
-
-  /* ── FILE TREE ── */
-  .tree {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px 24px;
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 2;
-    overflow-x: auto;
-  }
-  .tree-item { display: flex; align-items: baseline; gap: 10px; }
-  .tree-branch { color: var(--border2); user-select: none; }
-  .tree-dir  { color: var(--blue-text); font-weight: 500; }
-  .tree-file { color: var(--text); }
-  .tree-top  { color: var(--amber-text); font-weight: 600; }
-  .tree-comment { color: var(--text3); margin-left: auto; font-size: 12px; }
-  .tree-spacer  { height: 4px; }
-
-  /* ── MODULE CARDS ── */
-  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-top: 4px; }
-  .card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 18px 20px;
-    transition: border-color 0.15s;
-  }
-  .card:hover { border-color: var(--border2); }
-  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-  .card-icon {
-    width: 32px; height: 32px; border-radius: 6px;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--mono); font-size: 14px; font-weight: 600; flex-shrink: 0;
-  }
-  .icon-green  { background: var(--green-dim);  color: var(--green-text); }
-  .icon-blue   { background: var(--blue-dim);   color: var(--blue-text); }
-  .icon-amber  { background: var(--amber-dim);  color: var(--amber-text); }
-  .icon-purple { background: var(--purple-dim); color: var(--purple-text); }
-  .icon-coral  { background: var(--coral-dim);  color: var(--coral-text); }
-  .card-name {
-    font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-  }
-  .card-file { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 1px; }
-  .card-desc { font-size: 13px; color: var(--text2); line-height: 1.6; }
-  .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-  .tag {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    color: var(--text3);
-  }
-
-  /* ── CODE BLOCK ── */
-  pre {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--green);
-    border-radius: 0 6px 6px 0;
-    padding: 16px 20px;
-    font-family: var(--mono);
-    font-size: 12.5px;
-    line-height: 1.8;
-    overflow-x: auto;
-    color: var(--text2);
-    margin: 16px 0;
-  }
-  pre .kw  { color: #f97583; }
-  pre .type{ color: #79b8ff; }
-  pre .str { color: var(--green-text); }
-  pre .cmt { color: var(--text3); }
-  pre .num { color: var(--amber-text); }
-  pre .sig { color: var(--purple-text); }
-
-  /* ── ADDRESS MAP TABLE ── */
-  .addr-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-    font-family: var(--mono);
-    margin-top: 12px;
-  }
-  .addr-table thead tr { border-bottom: 1px solid var(--border2); }
-  .addr-table th {
-    text-align: left;
-    padding: 8px 12px;
-    color: var(--text3);
-    font-size: 11px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    font-weight: 400;
-  }
-  .addr-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text2); }
-  .addr-table tr:last-child td { border-bottom: none; }
-  .addr-table .addr { color: var(--green-text); }
-  .addr-table .mod  { color: var(--blue-text); font-weight: 500; }
-  .addr-table .size { color: var(--amber-text); }
-  .addr-table tr:hover td { background: var(--bg3); }
-
-  /* ── REGISTER TABLE ── */
-  .reg-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-  .reg-table th {
-    text-align: left; padding: 7px 12px;
-    border-bottom: 1px solid var(--border2);
-    color: var(--text3); font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 400;
-    font-family: var(--mono);
-  }
-  .reg-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text2); font-size: 13px; }
-  .reg-table tr:last-child td { border-bottom: none; }
-  .reg-table .offset { color: var(--green-text); font-family: var(--mono); }
-  .reg-table .name   { color: var(--amber-text); font-family: var(--mono); font-weight: 500; }
-  .reg-table .rw     { color: var(--purple-text); font-family: var(--mono); font-size: 11px; }
-
-  .reg-wrap {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-top: 16px;
-  }
-  .reg-wrap + .reg-wrap { margin-top: 16px; }
-  .reg-label {
-    padding: 9px 14px;
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 500;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 8px;
-  }
-  .reg-label.uart  { color: var(--blue-text);   background: var(--blue-dim); }
-  .reg-label.gpio  { color: var(--green-text);  background: var(--green-dim); }
-  .reg-label.timer { color: var(--amber-text);  background: var(--amber-dim); }
-  .reg-label.intc  { color: var(--purple-text); background: var(--purple-dim); }
-  .reg-label.spi   { color: var(--coral-text);  background: var(--coral-dim); }
-  .reg-label.i2c   { color: var(--amber-text);  background: var(--amber-dim); }
-
-  /* ── ISA GRID ── */
-  .isa-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; }
-  .isa-card {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px 16px;
-  }
-  .isa-card h4 {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text3);
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 8px;
-  }
-  .isa-pills { display: flex; flex-wrap: wrap; gap: 5px; }
-  .isa-pill {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 3px 8px;
-    border-radius: 4px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    color: var(--text);
-  }
-
-  /* ── CALLOUT ── */
-  .callout {
-    display: flex; gap: 14px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-left: 3px solid;
-    border-radius: 0 8px 8px 0;
-    padding: 14px 18px;
-    margin: 16px 0;
-    font-size: 14px;
-    color: var(--text2);
-    line-height: 1.6;
-  }
-  .callout-info   { border-left-color: var(--blue); }
-  .callout-warn   { border-left-color: var(--amber); }
-  .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
-
-  /* ── SIGNAL TABLE ── */
-  .sig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .sig-box {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .sig-box-header {
-    padding: 8px 14px;
-    font-family: var(--mono);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    border-bottom: 1px solid var(--border);
-  }
-  .sig-box-header.in  { color: var(--green-text);  background: var(--green-dim); }
-  .sig-box-header.out { color: var(--coral-text);  background: var(--coral-dim); }
-  .sig-row {
-    display: flex; justify-content: space-between; align-items: baseline;
-    padding: 7px 14px;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-  .sig-row:last-child { border-bottom: none; }
-  .sig-name { font-family: var(--mono); color: var(--text); font-size: 12px; }
-  .sig-desc { color: var(--text3); font-size: 12px; text-align: right; max-width: 55%; }
-
-  /* ── DIVIDER ── */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 48px 0; }
-
-  /* ── PIPELINE FLOW ── */
-  .pipeline {
-    display: flex; align-items: center; gap: 0;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-top: 12px;
-  }
-  .pipe-stage {
-    flex: 1; padding: 14px 10px; text-align: center;
-    border-right: 1px solid var(--border);
-    font-size: 12px;
-  }
-  .pipe-stage:last-child { border-right: none; }
-  .pipe-stage-name { font-family: var(--mono); font-weight: 500; color: var(--text); font-size: 13px; }
-  .pipe-stage-sub  { font-size: 11px; color: var(--text3); margin-top: 4px; }
-
-  footer {
-    border-top: 1px solid var(--border);
-    padding: 28px 48px;
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--text3);
-    display: flex; justify-content: space-between; align-items: center;
-    flex-wrap: wrap; gap: 12px;
-  }
-  footer a { color: var(--green); text-decoration: none; }
-  footer a:hover { text-decoration: underline; }
-
-  h2 { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
-  h3 { font-family: var(--sans); font-size: 15px; font-weight: 500; color: var(--text); margin: 20px 0 10px; }
-  p  { color: var(--text2); margin-bottom: 12px; }
-  code {
-    font-family: var(--mono); font-size: 12px;
-    background: var(--bg3); border: 1px solid var(--border);
-    border-radius: 4px; padding: 1px 6px; color: var(--green-text);
-  }
-  strong { color: var(--text); font-weight: 500; }
-</style>
-</head>
-<body>
-
-<!-- ──────────────────────── HERO ──────────────────────── -->
-<div class="hero">
-  <div class="hero-eyebrow">RTL Source Code</div>
-  <h1>RISC-V <span>SoC</span></h1>
-  <p class="hero-desc">
-    A complete 32-bit RISC-V processor (RV32I) implemented in synthesisable Verilog — 
-    CPU core, memories, and seven peripherals wired together into a single System-on-Chip.
-  </p>
-  <div class="badge-row">
-    <span class="badge badge-green">RV32I — 37 instructions</span>
-    <span class="badge badge-blue">100 MHz target clock</span>
-    <span class="badge badge-amber">16 KB memory (8 KB IMEM + 8 KB DMEM)</span>
-    <span class="badge badge-purple">7 peripherals</span>
-  </div>
 </div>
 
-<div class="container">
+---
 
-  <!-- ──────────────────────── FILE TREE ──────────────────────── -->
-  <section>
-    <div class="section-label">Project layout</div>
-    <div class="section-title">Repository structure</div>
-    <p>Every file here describes a real hardware module that gets synthesised into gates.</p>
+## Table of Contents
 
-    <div class="callout callout-info">
-      <span class="callout-icon">ℹ</span>
-      <div>
-        Two RTL variants exist. <code>rtl/</code> uses SystemVerilog <code>logic</code> — works with Vivado and VCS/Verdi.
-        <code>synthesis/genus/rtl/</code> replaces <code>logic</code> with <code>wire</code>, required for Cadence Genus and NCLaunch.
-      </div>
-    </div>
+1. [Overview](#1-overview)
+2. [RTL Variants](#2-rtl-variants)
+3. [Repository Structure](#3-repository-structure)
+4. [SoC Top Level — `soc_top.v`](#4-soc-top-level--soc_topv)
+   - 4.1 [Power-On Reset](#41-power-on-reset)
+   - 4.2 [Address Map](#42-address-map)
+   - 4.3 [Read-Back Mux](#43-read-back-mux)
+5. [CPU Core — `cpu/`](#5-cpu-core--cpu)
+   - 5.1 [Program Counter](#51-program-counter--pcv)
+   - 5.2 [Register File](#52-register-file--regfilev)
+   - 5.3 [Immediate Generator](#53-immediate-generator--immgenv)
+   - 5.4 [Control Unit](#54-control-unit--controlv)
+   - 5.5 [ALU Control](#55-alu-control--alu_ctrlv)
+   - 5.6 [ALU](#56-alu--aluv)
+   - 5.7 [PC Update Logic](#57-pc-update-logic)
+   - 5.8 [Branch Conditions](#58-branch-conditions)
+   - 5.9 [Store Byte-Enables](#59-store-byte-enables)
+6. [Memory Subsystem — `memory/`](#6-memory-subsystem--memory)
+7. [Peripherals — `peripheral/`](#7-peripherals--peripheral)
+8. [Top-Level Ports](#8-top-level-ports)
+9. [Instruction Set — RV32I](#9-instruction-set--rv32i-37-instructions)
+10. [Synthesis & Timing Constraints](#10-synthesis--timing-constraints)
+11. [Simulation & Testbench](#11-simulation--testbench)
 
-    <div class="tree">
-      <div class="tree-item"><span class="tree-top">soc_top.v</span><span class="tree-comment">← whole SoC: CPU + memories + peripherals</span></div>
-      <div class="tree-item"><span class="tree-top">soc_top_demo.v</span><span class="tree-comment">← same SoC, FPGA demo wiring</span></div>
-      <div class="tree-spacer"></div>
-      <div class="tree-item"><span class="tree-dir">cpu/</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">cpu_top.v</span><span class="tree-comment">connects all 6 sub-modules</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">pc.v</span><span class="tree-comment">program counter</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">regfile.v</span><span class="tree-comment">32 × 32-bit register file</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">immgen.v</span><span class="tree-comment">immediate value extractor</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">control.v</span><span class="tree-comment">instruction decoder → control signals</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">alu_ctrl.v</span><span class="tree-comment">picks which ALU operation to run</span></div>
-      <div class="tree-item"><span class="tree-branch">└──</span><span class="tree-file">alu.v</span><span class="tree-comment">does the actual math and logic</span></div>
-      <div class="tree-spacer"></div>
-      <div class="tree-item"><span class="tree-dir">memory/</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">imem.v</span><span class="tree-comment">instruction memory (8 KB, read-only)</span></div>
-      <div class="tree-item"><span class="tree-branch">└──</span><span class="tree-file">dmem.v</span><span class="tree-comment">data memory (8 KB, read-write)</span></div>
-      <div class="tree-spacer"></div>
-      <div class="tree-item"><span class="tree-dir">peripheral/</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">uart.v</span><span class="tree-comment">serial TX/RX (115200 default)</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">gpio.v</span><span class="tree-comment">8 LEDs + 8 switches</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">timer.v</span><span class="tree-comment">countdown timer with interrupt</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">intc.v</span><span class="tree-comment">interrupt controller (4 sources)</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">spi.v</span><span class="tree-comment">SPI master</span></div>
-      <div class="tree-item"><span class="tree-branch">├──</span><span class="tree-file">i2c.v</span><span class="tree-comment">I2C master</span></div>
-      <div class="tree-item"><span class="tree-branch">└──</span><span class="tree-file">seg7_ctrl.v</span><span class="tree-comment">7-segment display driver</span></div>
-    </div>
-  </section>
+---
 
-  <!-- ──────────────────────── SOC TOP ──────────────────────── -->
-  <section>
-    <div class="section-label">Top level</div>
-    <div class="section-title">soc_top.v — the glue file</div>
-    <p>
-      This file contains almost no logic itself. Its job is to <strong>instantiate every other module and wire them together</strong>.
-      Think of it as a circuit board: it defines what chips are present and how they connect.
-    </p>
+## 1. Overview
 
-    <h3>Power-on reset    <p>
-      After power-up, the SoC holds everything in reset for <strong>256 clock cycles</strong>
-      before the CPU starts. This guarantees all registers initialise to known values.
-    </p>
-<pre><span class="kw">reg</span> [<span class="num">7</span>:<span class="num">0</span>] por_cnt;
-<span class="kw">wire</span> rst_n_int = por_cnt[<span class="num">7</span>] &amp; rst_n;   <span class="cmt">// CPU only runs when POR is done AND external reset released</span>
-<span class="kw">always</span> @(<span class="kw">posedge</span> clk)
-    <span class="kw">if</span> (!por_cnt[<span class="num">7</span>]) por_cnt &lt;= por_cnt + <span class="num">1</span>;</pre>
+This directory contains the complete synthesisable RTL for a **RISC-V RV32I System-on-Chip**. Every module — from the program counter to the I2C master — was written from scratch with no pre-built IP. The design implements the full base integer instruction set (37 instructions) in a **single-cycle, non-pipelined architecture**: every instruction, including loads, stores, branches, and jumps, completes in exactly one clock cycle.
 
-    <h3>Memory-mapped I/O — address map</h3>
-    <p>
-      The CPU talks to every peripheral by reading/writing specific memory addresses — no special CPU instructions needed.
-      A small combinational decoder checks the address and routes each access to the right module.
-    </p>
+| Parameter | Value |
+|-----------|-------|
+| **ISA** | RISC-V RV32I — 37 instructions |
+| **Architecture** | Single-cycle (non-pipelined) |
+| **Target clock** | 100 MHz |
+| **Instruction memory** | 8 KB (2048 × 32-bit ROM) |
+| **Data memory** | 8 KB (2048 × 32-bit SRAM, byte-addressable) |
+| **Total on-chip memory** | 16 KB |
+| **Peripherals** | UART · GPIO · Timer · INTC · SPI · I2C · Seg7 |
+| **Bus type** | Custom memory-mapped, combinational address decode |
+| **Reset** | Active-low asynchronous, 256-cycle power-on reset |
 
-    <div style="background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 8px;">
-      <table class="addr-table">
-        <thead>
-          <tr>
-            <th>Address</th>
-            <th>Module</th>
-            <th>Size</th>
-            <th>What it is</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td class="addr">0x0000_0000</td><td class="mod">IMEM</td><td class="size">8 KB</td><td>Program code (CPU fetches from here)</td></tr>
-          <tr><td class="addr">0x0000_2000</td><td class="mod">DMEM</td><td class="size">8 KB</td><td>Variables, stack, heap</td></tr>
-          <tr><td class="addr">0x1000_0000</td><td class="mod">UART</td><td class="size">16 B</td><td>Serial port registers</td></tr>
-          <tr><td class="addr">0x2000_0000</td><td class="mod">GPIO</td><td class="size">16 B</td><td>LED and switch registers</td></tr>
-          <tr><td class="addr">0x2000_0100</td><td class="mod">Seg7</td><td class="size">4 B</td><td>7-segment display register</td></tr>
-          <tr><td class="addr">0x3000_0000</td><td class="mod">Timer</td><td class="size">16 B</td><td>Countdown timer</td></tr>
-          <tr><td class="addr">0x4000_0000</td><td class="mod">INTC</td><td class="size">16 B</td><td>Interrupt controller</td></tr>
-          <tr><td class="addr">0x5000_0000</td><td class="mod">SPI</td><td class="size">16 B</td><td>SPI master registers</td></tr>
-          <tr><td class="addr">0x6000_0000</td><td class="mod">I2C</td><td class="size">16 B</td><td>I2C master registers</td></tr>
-        </tbody>
-      </table>
-    </div>
+---
 
-    <h3>How the read-back mux works</h3>
-    <p>
-      Only one peripheral can drive the data bus at a time. The top-level file implements a priority chain —
-      whichever peripheral is selected gets its data forwarded to the CPU:
-    </p>
-<pre>assign dbus_rdata = dmem_sel  ? dmem_rdata  :
+## 2. RTL Variants
+
+Two functionally identical RTL versions exist to accommodate tool-specific requirements:
+
+| Version | Location | Tools | Key Difference |
+|---------|----------|-------|----------------|
+| **Original** | `rtl/` | Vivado · VCS/Verdi · XSim | Uses SystemVerilog `logic` net type |
+| **Wire-fixed** | `synthesis/genus/rtl/` | Cadence Genus · NCLaunch | All `logic` replaced with `wire` |
+
+Cadence tools in Verilog-2001 mode do not accept `logic` as a net type. The wire-fixed version is also extended with SPI, I2C, and Seg7 for the complete ASIC demonstration. The RTL logic is **bit-for-bit identical** between both versions.
+
+```verilog
+// Original rtl/           →    // Wire-fixed synthesis/genus/rtl/
+logic branch_taken;        →    wire  branch_taken;
+logic [31:0] alu_result;   →    wire  [31:0] alu_result;
+// reg declarations remain unchanged in both versions
+```
+
+---
+
+## 3. Repository Structure
+
+```
+rtl/
+├── soc_top.v               ← Full SoC: CPU + memories + all peripherals wired together
+├── soc_top_demo.v          ← Same SoC wired for the Spartan-7 Boolean FPGA demo board
+│
+├── cpu/
+│   ├── cpu_top.v           ← Structural wrapper: connects all 6 CPU sub-modules
+│   ├── pc.v                ← Program counter (32-bit, resets to 0x0)
+│   ├── regfile.v           ← 32 × 32-bit register file (x0 hardwired to 0)
+│   ├── immgen.v            ← Immediate extractor (5 RV32I formats, sign-extended)
+│   ├── control.v           ← Instruction decoder — opcode → 11 control signals
+│   ├── alu_ctrl.v          ← ALU operation selector (funct3/funct7 → alu_sel)
+│   └── alu.v               ← 32-bit ALU (10 operations + zero flag)
+│
+├── memory/
+│   ├── imem.v              ← 8 KB instruction ROM (async read, $readmemh init)
+│   └── dmem.v              ← 8 KB data SRAM (sync write, async read, byte-lane WE)
+│
+└── peripheral/
+    ├── uart.v              ← Full-duplex UART (115200 baud default, IRQ)
+    ├── gpio.v              ← 8-bit GPIO (output register + input register)
+    ├── timer.v             ← Countdown timer (auto-reload, IRQ)
+    ├── intc.v              ← 4-source priority interrupt controller
+    ├── spi.v               ← SPI master (CPOL/CPHA modes, IRQ)
+    ├── i2c.v               ← I2C master (9-state FSM, open-drain, IRQ)
+    └── seg7_ctrl.v         ← Dual 4-digit 7-segment display driver (multiplexed)
+```
+
+---
+
+## 4. SoC Top Level — `soc_top.v`
+
+`soc_top.v` contains almost no logic of its own. Its job is to **instantiate every module and wire them all together** — the structural glue that defines what the chip contains and how everything connects. Think of it as the PCB schematic for the entire SoC.
+
+The data path through the SoC on every instruction cycle:
+
+```
+CPU (cpu_top)
+    │
+    │  dbus_addr[31:0]
+    │  dbus_wdata[31:0]
+    │  dbus_we[3:0]
+    │  dbus_re
+    ▼
+Address Decoder (combinational)
+    │
+    ├──► DMEM  (0x0000_2000)
+    ├──► UART  (0x1000_0000)
+    ├──► GPIO  (0x2000_0000)
+    ├──► Seg7  (0x2000_0100)
+    ├──► Timer (0x3000_0000)
+    ├──► INTC  (0x4000_0000)
+    ├──► SPI   (0x5000_0000)
+    └──► I2C   (0x6000_0000)
+    │
+    ▼
+Read-back Mux → dbus_rdata[31:0] → CPU
+```
+
+---
+
+### 4.1 Power-On Reset
+
+After power-up, the SoC holds everything in reset for **256 clock cycles** before the CPU starts executing. This guarantees all flip-flops and registers across every peripheral initialise to known values before the first instruction fetch.
+
+```verilog
+reg [7:0] por_cnt;
+// CPU only runs when POR counter has saturated AND external reset is released
+wire rst_n_int = por_cnt[7] & rst_n;
+
+always @(posedge clk)
+    if (!por_cnt[7]) por_cnt <= por_cnt + 1;
+```
+
+`por_cnt[7]` goes high after 128 increments — at 100 MHz this is a **1.28 µs** startup delay, more than enough for clocks and I/O to stabilise.
+
+---
+
+### 4.2 Address Map
+
+The CPU talks to every peripheral by reading and writing specific memory addresses — no special CPU instructions needed. A combinational decoder checks the upper address bits and asserts the chip-select for the correct module.
+
+| Base Address | Module | Region Size | Description |
+|-------------|--------|-------------|-------------|
+| `0x0000_0000` | IMEM | 8 KB | Program code — CPU fetches instructions from here |
+| `0x0000_2000` | DMEM | 8 KB | Variables, stack, heap |
+| `0x1000_0000` | UART | 16 B | Serial port registers |
+| `0x2000_0000` | GPIO | 16 B | LED output and switch input registers |
+| `0x2000_0100` | Seg7 | 4 B | 7-segment display register |
+| `0x3000_0000` | Timer | 16 B | Countdown timer registers |
+| `0x4000_0000` | INTC | 16 B | Interrupt controller registers |
+| `0x5000_0000` | SPI | 16 B | SPI master registers |
+| `0x6000_0000` | I2C | 16 B | I2C master registers |
+
+---
+
+### 4.3 Read-Back Mux
+
+Only one peripheral can drive the CPU data bus at a time. A combinational priority chain selects the active peripheral's read data. All unselected peripherals return `32'h0`:
+
+```verilog
+assign dbus_rdata = dmem_sel  ? dmem_rdata  :
                     uart_sel  ? uart_rdata  :
                     gpio_sel  ? gpio_rdata  :
                     timer_sel ? timer_rdata :
@@ -514,489 +193,490 @@
                     spi_sel   ? spi_rdata   :
                     i2c_sel   ? i2c_rdata   :
                     seg7_sel  ? seg7_rdata  :
-                                <span class="num">32'h0</span>;       <span class="cmt">// returns 0 if nothing selected</span></pre>
-  </section>
+                                32'h0;
+```
 
-  <!-- ──────────────────────── CPU ──────────────────────── -->
-  <section>
-    <div class="section-label">CPU core</div>
-    <div class="section-title">cpu/ — six modules, one processor</div>
-    <p>
-      The CPU is split into six cooperating modules. <code>cpu_top.v</code> is a structural wrapper
-      that wires them together — it contains no logic of its own.
-    </p>
+---
 
-    <div class="pipeline">
-      <div class="pipe-stage">
-        <div class="pipe-stage-name">PC</div>
-        <div class="pipe-stage-sub">pc.v<br>fetch addr</div>
-      </div>
-      <div class="pipe-stage">
-        <div class="pipe-stage-name">IMEM</div>
-        <div class="pipe-stage-sub">imem.v<br>instruction bits</div>
-      </div>
-      <div class="pipe-stage">
-        <div class="pipe-stage-name">Decode</div>
-        <div class="pipe-stage-sub">control.v<br>immgen.v</div>
-      </div>
-      <div class="pipe-stage">
-        <div class="pipe-stage-name">RegFile</div>
-        <div class="pipe-stage-sub">regfile.v<br>rs1 / rs2</div>
-      </div>
-      <div class="pipe-stage">
-        <div class="pipe-stage-name">ALU</div>
-        <div class="pipe-stage-sub">alu.v<br>alu_ctrl.v</div>
-      </div>
-      <div class="pipe-stage">
-        <div class="pipe-stage-name">Writeback</div>
-        <div class="pipe-stage-sub">DMEM or<br>result → rd</div>
-      </div>
-    </div>
+## 5. CPU Core — `cpu/`
 
-    <div class="cards" style="margin-top: 20px;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-blue">PC</div>
-          <div>
-            <div class="card-name">Program Counter</div>
-            <div class="card-file">cpu/pc.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          A single 32-bit register that holds the address of the <em>current</em> instruction.
-          Resets to <code>0x0</code>. Every clock cycle it updates to the next address
-          (PC+4, branch target, or jump target) as decided by <code>cpu_top</code>.
-        </p>
-        <div class="card-tags"><span class="tag">32-bit reg</span><span class="tag">sync reset</span></div>
-      </div>
+The CPU is decomposed into six cooperating modules. `cpu_top.v` is a **pure structural wrapper** — it contains no logic, only wire declarations connecting the sub-modules. Every instruction is fetched, decoded, executed, and written back in a single clock cycle.
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-green">RF</div>
-          <div>
-            <div class="card-name">Register File</div>
-            <div class="card-file">cpu/regfile.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          32 general-purpose 32-bit registers (x0–x31). Two registers can be read
-          simultaneously (combinational, instant). Writes happen on the clock edge.
-          <strong>x0 is hardwired to zero</strong> — reads always return 0, writes are silently ignored.
-        </p>
-        <div class="card-tags"><span class="tag">2-port read</span><span class="tag">x0 = 0 hardwired</span></div>
-      </div>
+```
+  ┌──────────────────────────────────────────────────────┐
+  │                    cpu_top.v                         │
+  │                                                      │
+  │  PC → IMEM → ImmGen ──────────────────────────────┐  │
+  │   ↑           │                                   │  │
+  │   │         Decode                                │  │
+  │   │     (control.v)                               │  │
+  │   │           │                                   ▼  │
+  │   │         RegFile → ALU Ctrl → ALU → Writeback  │  │
+  │   │        (regfile.v)(alu_ctrl)(alu.v)    │      │  │
+  │   │                                        │      │  │
+  │   └──────────── pc_next ◄──────────────────┘      │  │
+  │                                                   │  │
+  │                              dbus_addr/wdata/rdata│  │
+  └───────────────────────────────────────────────────┘  │
+                                                          │
+                                              To soc_top bus
+```
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-amber">IG</div>
-          <div>
-            <div class="card-name">Immediate Generator</div>
-            <div class="card-file">cpu/immgen.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          Many instructions embed a constant (immediate) value inside their 32 bits, 
-          but in five different scrambled formats. This module extracts that constant
-          and sign-extends it to 32 bits for all five RISC-V instruction formats (I, S, B, U, J).
-        </p>
-        <div class="card-tags"><span class="tag">I/S/B/U/J types</span><span class="tag">combinational</span></div>
-      </div>
+---
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-purple">CU</div>
-          <div>
-            <div class="card-name">Control Unit</div>
-            <div class="card-file">cpu/control.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          The "brain" — reads the 7-bit opcode and fires 11 control signals that tell
-          every other module what to do. Purely combinational; no registers, no clock.
-          One big <code>case</code> statement covering all 9 instruction types.
-        </p>
-        <div class="card-tags"><span class="tag">11 control signals</span><span class="tag">combinational</span></div>
-      </div>
+### 5.1 Program Counter — `pc.v`
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-coral">AC</div>
-          <div>
-            <div class="card-name">ALU Control</div>
-            <div class="card-file">cpu/alu_ctrl.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          A translator between the Control Unit's 2-bit <code>alu_op</code> and the ALU's
-          4-bit <code>alu_sel</code>. Uses <code>funct3</code> and <code>funct7</code> bits
-          to distinguish, e.g., ADD from SUB (same opcode, different <code>funct7</code> bit).
-        </p>
-        <div class="card-tags"><span class="tag">4-bit alu_sel</span><span class="tag">funct3/7 decode</span></div>
-      </div>
+A single 32-bit register holding the byte address of the currently executing instruction. Resets synchronously to `0x0000_0000` on active-low reset. Every clock edge it advances to `pc_next`, which is computed combinationally in `cpu_top` based on the instruction type.
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-green">∑</div>
-          <div>
-            <div class="card-name">ALU</div>
-            <div class="card-file">cpu/alu.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          Performs 10 operations: ADD, SUB, AND, OR, XOR, SLL, SRL, SRA, SLT, SLTU.
-          Also produces a <code>zero</code> flag (result == 0) used by branch instructions
-          to decide whether to take the branch.
-        </p>
-        <div class="card-tags"><span class="tag">10 operations</span><span class="tag">zero flag</span></div>
-      </div>
-    </div>
+```verilog
+always @(posedge clk or negedge rst_n)
+    if (!rst_n) pc_out <= 32'h0000_0000;
+    else        pc_out <= pc_next;
+```
 
-    <h3>PC update logic</h3>
-    <p>Each cycle, <code>cpu_top</code> chooses the next PC from four candidates:</p>
-<pre>assign pc_next = jalr         ? (rs1_data + imm) &amp; ~<span class="num">32'h1</span>  <span class="cmt">// JALR: reg + offset, clear bit 0</span>
-               : jal          ? pc + imm                    <span class="cmt">// JAL: PC-relative jump</span>
-               : branch_taken ? pc + imm                    <span class="cmt">// branch: PC-relative offset</span>
-               :                pc + <span class="num">32'd4</span>;                 <span class="cmt">// normal: next instruction</span></pre>
+---
 
-    <h3>Store byte-enables</h3>
-    <p>
-      The CPU can write 1, 2, or 4 bytes at a time without disturbing the other bytes in the same 32-bit word.
-      The 4-bit write-enable (<code>dbus_we</code>) is set according to the store instruction:
-    </p>
-<pre>SB  funct3=000  →  4'b0001 shifted to correct byte lane  <span class="cmt">// 1 byte</span>
-SH  funct3=001  →  4'b0011 shifted to correct byte lane  <span class="cmt">// 2 bytes</span>
-SW  funct3=010  →  4'b1111                               <span class="cmt">// all 4 bytes</span></pre>
-  </section>
+### 5.2 Register File — `regfile.v`
 
-  <!-- ──────────────────────── MEMORY ──────────────────────── -->
-  <section>
-    <div class="section-label">Memory subsystem</div>
-    <div class="section-title">memory/ — instruction and data storage</div>
+32 general-purpose 32-bit registers (x0–x31). Two registers can be read simultaneously in the same cycle (combinational, zero latency). Writes are clocked — the result is committed on the next rising edge.
 
-    <div class="cards">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-blue">IM</div>
-          <div>
-            <div class="card-name">Instruction Memory</div>
-            <div class="card-file">memory/imem.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          8 KB read-only program store (2048 × 32-bit words). The CPU fetches one instruction per cycle.
-          Reads are combinational — zero wait states. The current program is hardcoded as a 
-          <code>case</code> statement encoding 21 instructions (a UART "RISC-V SOC OK" boot message).
-        </p>
-        <div class="card-tags"><span class="tag">8 KB</span><span class="tag">combinational read</span><span class="tag">word-addressed</span></div>
-      </div>
+**x0 is hardwired to zero** — reads always return `0`, writes are silently discarded:
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-amber">DM</div>
-          <div>
-            <div class="card-name">Data Memory</div>
-            <div class="card-file">memory/dmem.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          8 KB read-write memory for variables, the stack, and heap. Reads are combinational;
-          writes are synchronous (clocked) with 4-bit byte-lane enables so individual bytes
-          can be written without touching neighbouring bytes.
-        </p>
-        <div class="card-tags"><span class="tag">8 KB</span><span class="tag">byte-lane writes</span><span class="tag">sync write</span></div>
-      </div>
-    </div>
-<pre><span class="cmt">// Byte-lane write — only selected bytes change</span>
-<span class="kw">always</span> @(<span class="kw">posedge</span> clk) <span class="kw">begin</span>
-    <span class="kw">if</span> (we[<span class="num">0</span>]) mem[idx][<span class="num">7</span>:<span class="num">0</span>]   &lt;= wdata[<span class="num">7</span>:<span class="num">0</span>];
-    <span class="kw">if</span> (we[<span class="num">1</span>]) mem[idx][<span class="num">15</span>:<span class="num">8</span>]  &lt;= wdata[<span class="num">15</span>:<span class="num">8</span>];
-    <span class="kw">if</span> (we[<span class="num">2</span>]) mem[idx][<span class="num">23</span>:<span class="num">16</span>] &lt;= wdata[<span class="num">23</span>:<span class="num">16</span>];
-    <span class="kw">if</span> (we[<span class="num">3</span>]) mem[idx][<span class="num">31</span>:<span class="num">24</span>] &lt;= wdata[<span class="num">31</span>:<span class="num">24</span>];
-<span class="kw">end</span></pre>
-  </section>
+```verilog
+// Combinational read — x0 always returns 0
+assign rs1_data = (rs1 == 5'h0) ? 32'h0 : regs[rs1];
+assign rs2_data = (rs2 == 5'h0) ? 32'h0 : regs[rs2];
 
-  <!-- ──────────────────────── PERIPHERALS ──────────────────────── -->
-  <section>
-    <div class="section-label">Peripherals</div>
-    <div class="section-title">peripheral/ — seven hardware interfaces</div>
-    <p>
-      All peripherals share the same simple bus interface: a 4-bit register <code>addr</code>,
-      32-bit <code>wdata</code>/<code>rdata</code>, and a <code>we</code> write-enable.
-      The SoC top level activates the right <code>we</code> based on the address decoder.
-    </p>
+// Synchronous write — write-enable guards x0
+always @(posedge clk)
+    if (we && rd != 5'h0) regs[rd] <= wdata;
+```
 
-    <!-- UART -->
-    <div class="reg-wrap">
-      <div class="reg-label uart">uart.v — serial communication (UART)</div>
-      <table class="reg-table">
-        <thead><tr><th>Offset</th><th>Name</th><th>R/W</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr><td class="offset">0x0</td><td class="name">TX_DATA</td><td class="rw">W</td><td>Write a byte here to send it over the serial line</td></tr>
-          <tr><td class="offset">0x4</td><td class="name">STATUS</td><td class="rw">R</td><td>Bit 0 = <code>tx_busy</code>. If 1, wait before writing another byte</td></tr>
-          <tr><td class="offset">0x8</td><td class="name">RX_DATA</td><td class="rw">R</td><td>Bits [7:0] = received byte. Bit [8] = 1 when a new byte arrived</td></tr>
-          <tr><td class="offset">0xC</td><td class="name">BAUD_DIV</td><td class="rw">R/W</td><td>Sets baud rate. Default 868 → 115200 baud at 100 MHz</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p style="margin-top: 10px; font-size: 13px;">
-      <strong>How TX works:</strong> writing to TX_DATA loads a byte into a 10-bit shift register and clocks it out LSB-first
-      with a start bit (0) and stop bit (1). <strong>How RX works:</strong> detects the falling edge (start bit), waits half a bit-period,
-      then samples at the middle of each bit window for noise immunity. The RX line goes through a 2-stage synchroniser 
-      to prevent metastability. The UART fires an <code>irq</code> when a byte is received.
-    </p>
+---
 
-    <!-- GPIO -->
-    <div class="reg-wrap">
-      <div class="reg-label gpio">gpio.v — LEDs and switches</div>
-      <table class="reg-table">
-        <thead><tr><th>Offset</th><th>Name</th><th>R/W</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr><td class="offset">0x0</td><td class="name">OUTPUT</td><td class="rw">W</td><td>Drives <code>gpio_out[7:0]</code> — the 8 LED pins. Write <code>0xFF</code> to turn all on</td></tr>
-          <tr><td class="offset">0x4</td><td class="name">INPUT</td><td class="rw">R</td><td>Reads <code>gpio_in[7:0]</code> — the 8 slide switch positions</td></tr>
-        </tbody>
-      </table>
-    </div>
+### 5.3 Immediate Generator — `immgen.v`
 
-    <!-- Timer -->
-    <div class="reg-wrap">
-      <div class="reg-label timer">timer.v — countdown timer</div>
-      <table class="reg-table">
-        <thead><tr><th>Offset</th><th>Name</th><th>R/W</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr><td class="offset">0x0</td><td class="name">LOAD</td><td class="rw">R/W</td><td>Value to count down from. Writing here also resets the counter immediately</td></tr>
-          <tr><td class="offset">0x4</td><td class="name">COUNT</td><td class="rw">R</td><td>Current counter value (decreases each clock when enabled)</td></tr>
-          <tr><td class="offset">0x8</td><td class="name">CTRL</td><td class="rw">R/W</td><td>Bit 0 = enable. Bit 1 = auto-reload (1 = restart after timeout, 0 = one-shot)</td></tr>
-          <tr><td class="offset">0xC</td><td class="name">STATUS</td><td class="rw">R/W</td><td>Bit 0 = timeout flag. Write 1 to clear it</td></tr>
-        </tbody>
-      </table>
-    </div>
+Many RV32I instructions embed a constant directly in their 32-bit encoding. The constant bits are scattered across five different scrambled layouts depending on instruction type. This module extracts and reassembles the correct bits, then sign-extends the result to 32 bits.
 
-    <!-- INTC -->
-    <div class="reg-wrap">
-      <div class="reg-label intc">intc.v — interrupt controller</div>
-      <table class="reg-table">
-        <thead><tr><th>Offset</th><th>Name</th><th>R/W</th><th>What it does</th></tr></thead>
-        <tbody>
-          <tr><td class="offset">0x0</td><td class="name">PENDING</td><td class="rw">R</td><td>Which interrupts have fired (bits 0–3: UART, Timer, SPI, I2C)</td></tr>
-          <tr><td class="offset">0x4</td><td class="name">ENABLE</td><td class="rw">R/W</td><td>Which interrupts are allowed to reach the CPU (mask register)</td></tr>
-          <tr><td class="offset">0x8</td><td class="name">CLEAR</td><td class="rw">W</td><td>Write 1 to a bit to acknowledge and clear that interrupt</td></tr>
-          <tr><td class="offset">0xC</td><td class="name">PRIORITY</td><td class="rw">R/W</td><td>Mark interrupt as high (1) or low (0) priority</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <p style="font-size: 13px; margin-top: 10px;">
-      <strong>Typical software usage:</strong> (1) read PENDING to see which interrupt fired,
-      (2) service that peripheral, (3) write to CLEAR to acknowledge.
-      High-priority interrupts always reach the CPU; low-priority ones only do when enabled.
-    </p>
+| Format | Used By | Source Bits |
+|--------|---------|-------------|
+| **I-type** | ADDI, LW, JALR, LB, LH, etc. | `instr[31:20]`, sign-extended |
+| **S-type** | SW, SH, SB | `instr[31:25]` ++ `instr[11:7]`, sign-extended |
+| **B-type** | BEQ, BNE, BLT, BGE, BLTU, BGEU | `instr[31,7,30:25,11:8]` ++ `1'b0` |
+| **U-type** | LUI, AUIPC | `instr[31:12]` << 12 |
+| **J-type** | JAL | `instr[31,19:12,20,30:21]` ++ `1'b0` |
 
-    <!-- SPI + I2C -->
-    <div class="cards" style="margin-top: 16px;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-coral">SP</div>
-          <div>
-            <div class="card-name">SPI Master</div>
-            <div class="card-file">peripheral/spi.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          Drives SCK (clock), MOSI (data out), and CS_N (chip select) to talk to
-          sensors, displays, and flash memory. Write a byte to TX_DATA to start a
-          transfer; poll STATUS until not busy; read RX_DATA for the response.
-          Generates an <code>irq</code> on transfer complete.
-        </p>
-        <div class="card-tags"><span class="tag">SCK/MOSI/MISO/CS_N</span><span class="tag">irq on done</span></div>
-      </div>
+B-type and J-type force the lowest bit to `0` because branch and jump targets are always 4-byte aligned (odd addresses are illegal in RV32I).
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-amber">I2</div>
-          <div>
-            <div class="card-name">I2C Master</div>
-            <div class="card-file">peripheral/i2c.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          Two-wire protocol (SDA data + SCL clock) for short-range sensors like
-          temperature probes and accelerometers. Implements START, address+R/W,
-          data byte, ACK, and STOP sequences. Uses open-drain output-enable signals
-          rather than driving the bus directly.
-        </p>
-        <div class="card-tags"><span class="tag">SDA/SCL OE</span><span class="tag">9-state FSM</span></div>
-      </div>
+---
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-green">7S</div>
-          <div>
-            <div class="card-name">7-Segment Driver</div>
-            <div class="card-file">peripheral/seg7_ctrl.v</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          Drives two 4-digit 7-segment displays (8 digits total) on the Boolean FPGA board.
-          Uses <em>multiplexing</em> — each digit is lit briefly in turn at ~1 kHz.
-          Human eyes can't see the flicker, so all 8 digits appear on simultaneously.
-          Write a 32-bit hex value to display it directly.
-        </p>
-        <div class="card-tags"><span class="tag">8 digits</span><span class="tag">multiplexed</span><span class="tag">~1 kHz scan</span></div>
-      </div>
-    </div>
-  </section>
+### 5.4 Control Unit — `control.v`
 
-  <!-- ──────────────────────── ISA ──────────────────────── -->
-  <section>
-    <div class="section-label">Instruction set</div>
-    <div class="section-title">RV32I — 37 instructions supported</div>
-    <p>This implements the complete <strong>RV32I base integer ISA</strong>.</p>
+Reads the 7-bit opcode field (`instr[6:0]`) and asserts 11 independent control signals that drive every mux and enable in the datapath. Purely combinational — one `case` statement, no registers, no clock.
 
-    <div class="isa-grid">
-      <div class="isa-card">
-        <h4>Arithmetic</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">ADD</span><span class="isa-pill">ADDI</span><span class="isa-pill">SUB</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Logical</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">AND</span><span class="isa-pill">ANDI</span>
-          <span class="isa-pill">OR</span><span class="isa-pill">ORI</span>
-          <span class="isa-pill">XOR</span><span class="isa-pill">XORI</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Shift</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">SLL</span><span class="isa-pill">SLLI</span>
-          <span class="isa-pill">SRL</span><span class="isa-pill">SRLI</span>
-          <span class="isa-pill">SRA</span><span class="isa-pill">SRAI</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Compare</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">SLT</span><span class="isa-pill">SLTI</span>
-          <span class="isa-pill">SLTU</span><span class="isa-pill">SLTIU</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Load</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">LB</span><span class="isa-pill">LH</span><span class="isa-pill">LW</span>
-          <span class="isa-pill">LBU</span><span class="isa-pill">LHU</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Store</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">SB</span><span class="isa-pill">SH</span><span class="isa-pill">SW</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Branch</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">BEQ</span><span class="isa-pill">BNE</span>
-          <span class="isa-pill">BLT</span><span class="isa-pill">BGE</span>
-          <span class="isa-pill">BLTU</span><span class="isa-pill">BGEU</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Jump</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">JAL</span><span class="isa-pill">JALR</span>
-        </div>
-      </div>
-      <div class="isa-card">
-        <h4>Upper immediate</h4>
-        <div class="isa-pills">
-          <span class="isa-pill">LUI</span><span class="isa-pill">AUIPC</span>
-        </div>
-      </div>
-    </div>
-  </section>
+| Signal | Width | Effect When Asserted |
+|--------|-------|---------------------|
+| `reg_write` | 1 | Write result back to the register file |
+| `alu_src` | 1 | ALU second operand comes from the immediate (not rs2) |
+| `mem_read` | 1 | Read from data memory this cycle (load instruction) |
+| `mem_write` | 1 | Write to data memory this cycle (store instruction) |
+| `mem_to_reg` | 1 | Register write-back data comes from memory (load result) |
+| `branch` | 1 | This is a conditional branch — evaluate the branch condition |
+| `jal` | 1 | Unconditional PC-relative jump (JAL) |
+| `jalr` | 1 | Unconditional register-based jump (JALR) |
+| `lui` | 1 | Load upper immediate directly into register |
+| `auipc` | 1 | Load PC + upper immediate into register |
+| `alu_op[1:0]` | 2 | Hint to ALU control: ADD-forced / SUB-forced / decode funct3 |
 
-  <!-- ──────────────────────── SIGNALS ──────────────────────── -->
-  <section>
-    <div class="section-label">Top-level ports</div>
-    <div class="section-title">soc_top.v — external pin list</div>
-    <div class="sig-grid">
-      <div class="sig-box">
-        <div class="sig-box-header in">Inputs</div>
-        <div class="sig-row"><span class="sig-name">clk</span><span class="sig-desc">system clock</span></div>
-        <div class="sig-row"><span class="sig-name">rst_n</span><span class="sig-desc">active-low reset</span></div>
-        <div class="sig-row"><span class="sig-name">uart_rx</span><span class="sig-desc">serial data in</span></div>
-        <div class="sig-row"><span class="sig-name">gpio_in [7:0]</span><span class="sig-desc">slide switches</span></div>
-        <div class="sig-row"><span class="sig-name">spi_miso</span><span class="sig-desc">SPI data in</span></div>
-        <div class="sig-row"><span class="sig-name">i2c_sda_in</span><span class="sig-desc">I2C data in</span></div>
-      </div>
-      <div class="sig-box">
-        <div class="sig-box-header out">Outputs</div>
-        <div class="sig-row"><span class="sig-name">uart_tx</span><span class="sig-desc">serial data out</span></div>
-        <div class="sig-row"><span class="sig-name">gpio_out [7:0]</span><span class="sig-desc">LEDs</span></div>
-        <div class="sig-row"><span class="sig-name">spi_sck / mosi / cs_n</span><span class="sig-desc">SPI bus</span></div>
-        <div class="sig-row"><span class="sig-name">i2c_scl_oe / sda_oe</span><span class="sig-desc">I2C open-drain OE</span></div>
-        <div class="sig-row"><span class="sig-name">D0_AN / D0_SEG</span><span class="sig-desc">display 0 (4 digits)</span></div>
-        <div class="sig-row"><span class="sig-name">D1_AN / D1_SEG</span><span class="sig-desc">display 1 (4 digits)</span></div>
-      </div>
-    </div>
-  </section>
+**Opcode → control signal mapping:**
 
-  <!-- ──────────────────────── SYNTHESIS ──────────────────────── -->
-  <section>
-    <div class="section-label">Synthesis & simulation</div>
-    <div class="section-title">Timing constraints & testbench</div>
+| Opcode | Type | `reg_write` | `alu_src` | `mem_read` | `mem_write` | `branch` | `jal` | `jalr` | `lui` | `auipc` | `alu_op` |
+|--------|------|:-----------:|:---------:|:----------:|:-----------:|:--------:|:-----:|:------:|:-----:|:-------:|:--------:|
+| `0110011` | R-type | ✓ | — | — | — | — | — | — | — | — | 10 |
+| `0010011` | I-ALU | ✓ | ✓ | — | — | — | — | — | — | — | 10 |
+| `0000011` | Load | ✓ | ✓ | ✓ | — | — | — | — | — | — | 00 |
+| `0100011` | Store | — | ✓ | — | ✓ | — | — | — | — | — | 00 |
+| `1100011` | Branch | — | — | — | — | ✓ | — | — | — | — | 01 |
+| `1101111` | JAL | ✓ | — | — | — | — | ✓ | — | — | — | — |
+| `1100111` | JALR | ✓ | ✓ | — | — | — | — | ✓ | — | — | — |
+| `0110111` | LUI | ✓ | — | — | — | — | — | — | ✓ | — | — |
+| `0010111` | AUIPC | ✓ | — | — | — | — | — | — | — | ✓ | — |
 
-    <div class="callout callout-warn">
-      <span class="callout-icon">⚡</span>
-      <div>
-        The SDC constraints target a <strong>100 MHz clock</strong> (10 ns period) with 0.1 ns transition,
-        0.15 ns uncertainty, 2 ns I/O delays. <code>rst_n</code> is set as a false path — it's asynchronous.
-      </div>
-    </div>
+---
 
-    <div class="cards" style="margin-top: 4px;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-blue">TB</div>
-          <div>
-            <div class="card-name">Testbench</div>
-            <div class="card-file">tb/tb_soc_top.sv</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          SystemVerilog testbench with a 10 ns clock, 500 000-cycle timeout, and structured
-          <code>check(name, condition)</code> tasks that print <code>[PASS]</code> / <code>[FAIL]</code>.
-          Applies reset for 20 cycles, then waits 300 more for POR to clear before running tests.
-        </p>
-        <div class="card-tags"><span class="tag">10 ns clk</span><span class="tag">VCD waveform</span><span class="tag">pass/fail tasks</span></div>
-      </div>
+### 5.5 ALU Control — `alu_ctrl.v`
 
-      <div class="card">
-        <div class="card-header">
-          <div class="card-icon icon-amber">SDC</div>
-          <div>
-            <div class="card-name">Timing Constraints</div>
-            <div class="card-file">constraints.sdc</div>
-          </div>
-        </div>
-        <p class="card-desc">
-          Standard SDC file for Cadence Genus (or compatible tools).
-          Defines the 100 MHz clock, sets I/O delays to 2 ns,
-          adds a driving cell model (<code>BUFX4</code>) and 0.05 pF output load.
-        </p>
-        <div class="card-tags"><span class="tag">100 MHz</span><span class="tag">BUFX4 drive</span><span class="tag">false path: rst_n</span></div>
-      </div>
-    </div>
-  </section>
+Translates the control unit's 2-bit `alu_op` hint plus the instruction's `funct3` and `funct7[5]` fields into a 4-bit `alu_sel` that drives the ALU.
 
-</div><!-- /container -->
+| `alu_op` | Meaning | `alu_sel` Result |
+|----------|---------|-----------------|
+| `00` | Force ADD | Always `0000` — used by load/store: `addr = base + offset` |
+| `01` | Force SUB | Always `0001` — used by branches: compare by subtracting |
+| `10` | Decode | Decode from `funct3` / `funct7[5]` — R-type and I-ALU instructions |
 
-<footer>
-  <span>RISC-V SoC — RTL Source · RV32I · Verilog 2001 / SystemVerilog</span>
-  <span>Arunachalam-212223060022</span>
-</footer>
+For `alu_op = 10`, bit `funct7[5]` is the critical disambiguation bit: it distinguishes ADD from SUB (same `funct3 = 000`) and SRL from SRA (same `funct3 = 101`).
 
-</body>
-</html>
+---
+
+### 5.6 ALU — `alu.v`
+
+Executes 10 operations on two 32-bit operands based on the 4-bit `alu_sel`. Also produces a `zero` flag (`result == 0`) used by the branch logic.
+
+| `alu_sel` | Operation | Expression |
+|-----------|-----------|------------|
+| `0000` | ADD | `a + b` |
+| `0001` | SUB | `a - b` |
+| `0010` | AND | `a & b` |
+| `0011` | OR | `a \| b` |
+| `0100` | XOR | `a ^ b` |
+| `0101` | SLL | `a << b[4:0]` (zero-fill) |
+| `0110` | SRL | `a >> b[4:0]` (zero-fill) |
+| `0111` | SRA | `a >>> b[4:0]` (sign-extend) |
+| `1000` | SLT | `(signed(a) < signed(b)) ? 1 : 0` |
+| `1001` | SLTU | `(a < b) ? 1 : 0` (unsigned) |
+
+---
+
+### 5.7 PC Update Logic
+
+Each clock cycle, `cpu_top` selects the next PC from four candidates via a priority mux:
+
+```verilog
+assign pc_next =
+    jalr         ? (rs1_data + imm) & ~32'h1  // JALR: reg+offset, bit[0] forced 0
+  : jal          ? pc + imm                    // JAL:  PC-relative unconditional jump
+  : branch_taken ? pc + imm                    // Branch taken: PC-relative signed offset
+  :                pc + 32'd4;                 // Default: sequential fetch (PC+4)
+```
+
+JALR clears bit 0 of the target address to enforce 4-byte alignment, as required by the RISC-V specification.
+
+---
+
+### 5.8 Branch Conditions
+
+All six RISC-V conditional branch types are decoded from `funct3`. The ALU computes `rs1 - rs2` and the branch unit examines the `zero` flag and sign bits:
+
+| `funct3` | Instruction | Condition Checked |
+|----------|-------------|-------------------|
+| `000` | BEQ | `rs1 == rs2` (zero flag set) |
+| `001` | BNE | `rs1 != rs2` (zero flag clear) |
+| `100` | BLT | `rs1 < rs2` (signed comparison) |
+| `101` | BGE | `rs1 >= rs2` (signed comparison) |
+| `110` | BLTU | `rs1 < rs2` (unsigned comparison) |
+| `111` | BGEU | `rs1 >= rs2` (unsigned comparison) |
+
+---
+
+### 5.9 Store Byte-Enables
+
+The CPU can write 1, 2, or 4 bytes to memory without disturbing the remaining bytes in the same word. The 4-bit `dbus_we` byte-enable mask is generated from `funct3` and the two LSBs of the effective address:
+
+| Instruction | `funct3` | `dbus_we` | Bytes Written |
+|-------------|----------|-----------|---------------|
+| SB | `000` | `4'b0001 << addr[1:0]` | 1 byte at offset |
+| SH | `001` | `4'b0011 << addr[1:0]` | 2 bytes at offset |
+| SW | `010` | `4'b1111` | All 4 bytes |
+
+```verilog
+assign dbus_we = mem_write ? (
+    (funct3 == 3'b000) ? (4'b0001 << alu_result[1:0]) :  // SB
+    (funct3 == 3'b001) ? (4'b0011 << alu_result[1:0]) :  // SH
+                          4'b1111                         // SW
+) : 4'b0000;
+```
+
+---
+
+## 6. Memory Subsystem — `memory/`
+
+### `imem.v` — Instruction Memory
+
+8 KB read-only program store (2048 × 32-bit words). The CPU fetches one instruction per cycle with **zero wait states** — the read is combinational (asynchronous), so the instruction is available within the same clock cycle as the fetch address.
+
+- Initialised from `program.mem` using `$readmemh` at simulation/elaboration time
+- Address bits `[1:0]` are ignored — all instructions are 4-byte word-aligned
+- `assign data = mem[addr[12:2]]` — shifts the byte address to a word index
+
+---
+
+### `dmem.v` — Data Memory
+
+8 KB byte-addressable SRAM (2048 × 32-bit words). Reads are combinational (asynchronous); writes are synchronous (clocked). The 4-bit byte-lane write-enable natively supports SB, SH, and SW without any external logic:
+
+```verilog
+always @(posedge clk) begin
+    if (we[0]) mem[idx][7:0]   <= wdata[7:0];   // byte lane 0
+    if (we[1]) mem[idx][15:8]  <= wdata[15:8];  // byte lane 1
+    if (we[2]) mem[idx][23:16] <= wdata[23:16]; // byte lane 2
+    if (we[3]) mem[idx][31:24] <= wdata[31:24]; // byte lane 3
+end
+```
+
+Each byte lane is independently enabled, so `SB` and `SH` write exactly 1 or 2 bytes without disturbing neighbours in the same word.
+
+---
+
+## 7. Peripherals — `peripheral/`
+
+All peripherals share a common bus interface: `addr[3:0]` selects a register within the peripheral, `wdata[31:0]` / `rdata[31:0]` carry data, and `we` is the write enable (driven by the address decoder in `soc_top`). Each peripheral also outputs an optional `irq` line to the interrupt controller.
+
+---
+
+### `uart.v` — Serial Communication
+
+Full-duplex UART with independent TX and RX state machines, configurable baud rate divisor, mid-bit RX sampling, 2-stage synchroniser on RX input, and IRQ generation.
+
+**Register Map (base `0x1000_0000`):**
+
+| Offset | Name | R/W | Description |
+|--------|------|-----|-------------|
+| `0x0` | TX_DATA | W | Write a byte to transmit. Ignored if `tx_busy = 1` |
+| `0x4` | STATUS | R | `[0]` = `tx_busy` — poll before writing the next byte |
+| `0x8` | RX_DATA | R | `[7:0]` = received byte · `[8]` = `rx_ready` flag |
+| `0xC` | BAUD_DIV | R/W | Baud rate divisor. Default `868` → 115200 baud @ 100 MHz |
+
+**Baud rate formula:** `BAUD_DIV = (clock_freq / baud_rate) - 1`
+
+**TX operation:** Writing to TX_DATA loads a 10-bit shift register `{1'b1, data[7:0], 1'b0}` (stop · data LSB-first · start) and clocks it out one bit per `BAUD_DIV` cycles.
+
+**RX operation:** Detects the falling start-bit edge, waits half a bit-period (`BAUD_DIV / 2`) to align to mid-bit, then samples each data bit at the centre of its window for maximum noise immunity. The RX input passes through a **2-stage flip-flop synchroniser** to prevent metastability at the async domain crossing.
+
+**IRQ:** Asserted when `rx_ready` is high (byte fully received) or when `tx_busy` falls (transmitter becomes idle).
+
+---
+
+### `gpio.v` — LEDs and Switches
+
+8-bit bidirectional GPIO with separate output and input registers.
+
+**Register Map (base `0x2000_0000`):**
+
+| Offset | Name | R/W | Description |
+|--------|------|-----|-------------|
+| `0x0` | OUTPUT | R/W | Drives `gpio_out[7:0]` — the 8 LED pins. Write `0xFF` to light all |
+| `0x4` | INPUT | R | Reads `gpio_in[7:0]` — the 8 slide switch positions |
+
+---
+
+### `timer.v` — Countdown Timer
+
+Programmable 32-bit countdown timer with auto-reload and IRQ generation.
+
+**Register Map (base `0x3000_0000`):**
+
+| Offset | Name | R/W | Description |
+|--------|------|-----|-------------|
+| `0x0` | LOAD | R/W | Load value. Writing also immediately reloads and resets the counter |
+| `0x4` | COUNT | R | Current counter value — decrements each clock when enabled |
+| `0x8` | CTRL | R/W | `[0]` = enable · `[1]` = auto-reload |
+| `0xC` | STATUS | R/W | `[0]` = timeout flag — write `1` to clear |
+
+**Auto-reload mode** (`CTRL[1] = 1`): on reaching zero, the counter reloads from LOAD and continues — generates periodic interrupts at a fixed rate.
+
+**One-shot mode** (`CTRL[1] = 0`): the counter stops at zero after a single countdown. Software must re-enable to start again.
+
+---
+
+### `intc.v` — Interrupt Controller
+
+Priority-based 4-source interrupt aggregator. Collects IRQ lines from all peripherals and presents a single `irq_to_cpu` to the processor.
+
+**IRQ Sources:**
+
+| Bit | Source | Fired When |
+|-----|--------|------------|
+| 0 | UART | Byte fully received |
+| 1 | Timer | Countdown reached zero |
+| 2 | SPI | Transfer complete |
+| 3 | I2C | Transfer complete |
+
+**Register Map (base `0x4000_0000`):**
+
+| Offset | Name | R/W | Description |
+|--------|------|-----|-------------|
+| `0x0` | PENDING | R | `[3:0]` — latched IRQ bits, one per source |
+| `0x4` | ENABLE | R/W | `[3:0]` — interrupt enable mask |
+| `0x8` | CLEAR | W | Write `1` to a bit to acknowledge and clear that interrupt |
+| `0xC` | PRIORITY | R/W | `[3:0]` — `1` = high priority, `0` = low priority |
+
+**Typical software interrupt handler:**
+1. Read PENDING to identify which source fired
+2. Service that peripheral (e.g. read UART RX_DATA)
+3. Write the corresponding bit to CLEAR to acknowledge
+
+**Priority encode logic:**
+```verilog
+wire [31:0] active   = pending & enable_reg;
+wire [31:0] high_pri = active & priority_reg;
+// High-priority sources fire first; falls back to any active if none are high-priority
+assign irq_to_cpu = |high_pri ? |high_pri : |active;
+```
+
+---
+
+### `spi.v` — SPI Master
+
+Full SPI master controller driving SCK, MOSI, CS_N with MISO receive capability. Supports CPOL and CPHA mode configuration for compatibility with a wide range of SPI sensors, flash memories, and display drivers.
+
+**Usage:** Write the byte to transmit → poll STATUS until `busy = 0` → read RX_DATA for the received byte. Asserts `irq` on transfer completion.
+
+---
+
+### `i2c.v` — I2C Master
+
+Two-wire I2C master implementing a 9-state FSM:
+
+```
+IDLE → START → ADDR+RW → ACK → DATA → ACK → ... → STOP → IDLE
+```
+
+Uses open-drain output-enable signals (`scl_oe`, `sda_oe`) rather than driving SCL/SDA directly — the bus is released by de-asserting the output-enable, which allows the external pull-up resistor to bring the line high. This correctly implements the open-drain wired-AND topology required by the I2C specification.
+
+Asserts `irq` on transaction completion (after the final STOP condition).
+
+---
+
+### `seg7_ctrl.v` — 7-Segment Display Driver
+
+Drives two 4-digit 7-segment displays (8 digits total) on the Boolean FPGA board. Uses **time-division multiplexing** — each digit is asserted briefly in turn at approximately **1 kHz** per digit. At this refresh rate, persistence of vision makes all 8 digits appear simultaneously lit to the human eye.
+
+Write a 32-bit hexadecimal value to the display register; the driver decodes each nibble to its 7-segment encoding and cycles through the anodes automatically. No software intervention is needed after the initial write.
+
+---
+
+## 8. Top-Level Ports
+
+| Port | Dir | Width | Description |
+|------|-----|-------|-------------|
+| `clk` | in | 1 | System clock (100 MHz) |
+| `rst_n` | in | 1 | Active-low asynchronous reset |
+| `uart_tx` | out | 1 | Serial data out to host |
+| `uart_rx` | in | 1 | Serial data in from host |
+| `gpio_out[7:0]` | out | 8 | LED drive pins |
+| `gpio_in[7:0]` | in | 8 | Slide switch input pins |
+| `spi_sck` | out | 1 | SPI clock |
+| `spi_mosi` | out | 1 | SPI master data out |
+| `spi_miso` | in | 1 | SPI master data in |
+| `spi_cs_n` | out | 1 | SPI chip select (active-low) |
+| `i2c_scl_oe` | out | 1 | I2C clock open-drain output enable |
+| `i2c_sda_oe` | out | 1 | I2C data open-drain output enable |
+| `i2c_sda_in` | in | 1 | I2C data input |
+| `D0_AN[3:0]` | out | 4 | Display 0 digit anode select |
+| `D0_SEG[7:0]` | out | 8 | Display 0 segment drive |
+| `D1_AN[3:0]` | out | 4 | Display 1 digit anode select |
+| `D1_SEG[7:0]` | out | 8 | Display 1 segment drive |
+
+---
+
+## 9. Instruction Set — RV32I (37 Instructions)
+
+The design implements the complete RV32I base integer instruction set. All 37 instructions are decoded and executed:
+
+| Category | Instructions |
+|----------|-------------|
+| **Arithmetic** | `ADD` `ADDI` `SUB` |
+| **Logical** | `AND` `ANDI` `OR` `ORI` `XOR` `XORI` |
+| **Shift** | `SLL` `SLLI` `SRL` `SRLI` `SRA` `SRAI` |
+| **Compare** | `SLT` `SLTI` `SLTU` `SLTIU` |
+| **Load** | `LB` `LH` `LW` `LBU` `LHU` |
+| **Store** | `SB` `SH` `SW` |
+| **Branch** | `BEQ` `BNE` `BLT` `BGE` `BLTU` `BGEU` |
+| **Jump** | `JAL` `JALR` |
+| **Upper Immediate** | `LUI` `AUIPC` |
+
+---
+
+## 10. Synthesis & Timing Constraints
+
+The SDC constraints file (`synthesis/genus/scripts/constraints.sdc`) targets a **100 MHz clock** and models realistic I/O delays:
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Clock period | 10.0 ns | 100 MHz target |
+| Clock transition | 0.1 ns | Slew modelling |
+| Clock uncertainty | 0.15 ns | Jitter + skew budget |
+| Input delay | 2.0 ns | External register to chip input |
+| Output delay | 2.0 ns | Chip output to external register |
+| Driving cell | `BUFX4` | Source impedance model |
+| Output load | 0.05 pF | Destination load model |
+| False path | `rst_n` | Asynchronous reset — excluded from STA |
+
+**Effective logic budget per path:**
+`10.0 ns − 2.0 ns (input) − 0.15 ns (uncertainty) = 7.85 ns`
+
+The FPGA implementation on Spartan-7 achieved **WNS = +2.489 ns** (critical path = 7.511 ns), consuming 95.6% of this budget with comfortable margin.
+
+---
+
+## 11. Simulation & Testbench
+
+### Testbench — `tb/tb_soc_top.sv`
+
+The top-level SystemVerilog testbench instantiates `soc_top` and drives the full SoC through a structured test sequence:
+
+| Parameter | Value |
+|-----------|-------|
+| Clock period | 10 ns (100 MHz) |
+| Simulation timeout | 500,000 cycles |
+| Reset duration | 20 cycles (external) + 256 cycles (POR) |
+| Waveform output | `.vcd` — view in GTKWave or Verdi |
+
+**Structured checking:** all checks use a `check(name, condition)` task that prints `[PASS]` or `[FAIL]` with the test name, enabling automated PASS/FAIL batch reporting.
+
+**Startup sequence:** reset is held for 20 cycles, then the testbench waits an additional 300 cycles for the power-on reset counter to clear before beginning functional verification. This mirrors the exact startup behaviour of the physical hardware.
+
+### Running Simulations
+
+```bash
+# All testbenches — VCS batch runner (prints PASS/FAIL for each)
+bash tb/run_sim.sh
+
+# Single testbench — VCS
+vcs -full64 -sverilog +define+SIMULATION \
+    -f sim/filelist/rtl.f tb/tb_soc_top.sv \
+    -o simv_soc -l compile.log
+./simv_soc -l sim.log
+
+# With Verdi interactive waveform (FSDB)
+vcs -full64 -sverilog -debug_access+all +fsdbfile+dump.fsdb \
+    -f sim/filelist/rtl.f tb/tb_soc_top.sv -o simv_soc
+./simv_soc -gui
+
+# Cadence NCLaunch (uses wire-fixed RTL filelist)
+nclaunch &
+# Add: sim/filelist/rtl_nclaunch.f + tb/tb_soc_top.sv
+# Top: tb_soc_top → Run → Simulate
+```
+
+### Testbench Coverage
+
+| Testbench | Module | What Is Verified |
+|-----------|--------|-----------------|
+| `tb_alu.sv` | `alu` | All 10 operations, zero flag |
+| `tb_regfile.sv` | `regfile` | Write/read, x0 invariant, dual-port read |
+| `tb_immgen.sv` | `immgen` | All 5 formats, sign extension |
+| `tb_control.sv` | `control` | All 9 opcodes → correct 11-signal decode |
+| `tb_uart.sv` | `uart` | TX shift-out, RX mid-bit sampling, IRQ |
+| `tb_gpio.sv` | `gpio` | Output write, input read |
+| `tb_timer.sv` | `timer` | Load, countdown, IRQ, auto-reload |
+| `tb_intc.sv` | `intc` | Multi-source, enable mask, priority encode |
+| `tb_spi.sv` | `spi` | Frame generation, CPOL/CPHA modes |
+| `tb_i2c.sv` | `i2c` | START/STOP conditions, byte transmit |
+| `tb_cpu_top.sv` | `cpu_top` | Multi-instruction programs, branch/jump |
+| `tb_soc_top.sv` | Full SoC | End-to-end: CPU → bus → peripherals |
+
+---
+
+<div align="center">
+
+**RISC-V SoC — RTL Source**
+
+RV32I · 37 Instructions · Single-Cycle · 100 MHz · 16 KB Memory · 7 Peripheral IPs
+
+*Part of the full RTL → Simulation → FPGA → Synthesis → Place & Route → GDSII flow*
+
+Saveetha Engineering College — ECE Department
+Arunachalam P (212223060022) · Charan PG (212223060033)
+
+</div>
