@@ -2,7 +2,7 @@
 
 # RISC-V RV32I SoC — Full RTL to GDSII
 
-**A complete, industry-grade RISC-V System-on-Chip built from scratch**
+**A complete, industry-grade RISC-V System-on-Chip built from scratch**  
 **RTL Design · FPGA Validation · ASIC Synthesis · Place & Route · GDSII**
 
 ---
@@ -18,14 +18,9 @@
 
 ---
 
-**Institution:** Saveetha Engineering College
-**Department:** Electronics and Communication Engineering
+**Institution:** Saveetha Engineering College  
+**Department:** Electronics and Communication Engineering  
 **Course:** VLSI Design / Capstone Project
-
-| Name | Roll Number |
-|------|-------------|
-| Arunachalam P | 212223060022 |
-| Charan PG | 212223060033 |
 
 </div>
 
@@ -97,10 +92,9 @@ This project is a **complete RTL-to-GDSII implementation** of a RISC-V RV32I Sys
 
 ## 2. SoC Architecture
 
-<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/90ce47ce-e725-4b3f-b60c-22cb22e34dab" />
+<img width="1376" height="768" alt="SoC Architecture" src="https://github.com/user-attachments/assets/90ce47ce-e725-4b3f-b60c-22cb22e34dab" />
 
-<img width="1440" height="2350" alt="image" src="https://github.com/user-attachments/assets/4515c943-f6f7-4383-92a2-bba3529ce053" />
-
+<img width="1440" height="2350" alt="SoC Block Diagram" src="https://github.com/user-attachments/assets/4515c943-f6f7-4383-92a2-bba3529ce053" />
 
 ### Address Map
 
@@ -116,6 +110,7 @@ The SoC uses a flat memory map with fully combinational address decode logic. Al
 | INTC | `0x40000000` | 16 B | `intc` | `addr[31:4]==28'h4000000` |
 
 The data bus read multiplexer in `soc_top.v`:
+
 ```verilog
 assign dbus_rdata = dmem_sel  ? dmem_rdata  :
                     uart_sel  ? uart_rdata  :
@@ -129,8 +124,7 @@ assign dbus_rdata = dmem_sel  ? dmem_rdata  :
 
 ## 3. Module Breakdown
 
-<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/39f2ae22-302c-4ca5-b05a-a2547cc6327a" />
-
+<img width="1376" height="768" alt="Module Breakdown" src="https://github.com/user-attachments/assets/39f2ae22-302c-4ca5-b05a-a2547cc6327a" />
 
 ### 3.1 RISC-V CPU Core
 
@@ -209,7 +203,7 @@ A fully combinational decoder. Decodes the 7-bit opcode into 11 independent cont
 
 #### ALU + ALU Control (`alu.v`, `alu_ctrl.v`)
 
-`alu_ctrl.v` translates the combined `{alu_op[1:0], funct3[2:0], funct7[5]}` encoding into a 4-bit `alu_sel` signal that selects the ALU operation:
+`alu_ctrl.v` translates the combined `{alu_op[1:0], funct3[2:0], funct7[5]}` encoding into a 4-bit `alu_sel` signal:
 
 | `alu_sel` | Operation | Description |
 |-----------|-----------|-------------|
@@ -230,8 +224,6 @@ The ALU also produces a `zero` flag (result == 0), which the branch unit uses to
 
 #### Write-back Mux
 
-The source of data written back to the register file is selected by a priority mux covering all write-back cases:
-
 ```verilog
 assign rd_wdata = lui        ? imm        :   // LUI: upper immediate directly
                   auipc      ? (pc + imm) :   // AUIPC: PC + upper immediate
@@ -244,13 +236,11 @@ assign rd_wdata = lui        ? imm        :   // LUI: upper immediate directly
 
 #### Load Data Sign/Zero Extension
 
-All five RV32I load widths are decoded and handled in `cpu_top.v` based on `funct3`:
-
 ```verilog
 case (funct3)
     3'b000: load_data = {{24{dbus_rdata[7]}},  dbus_rdata[7:0]};   // LB  — sign-extend byte
     3'b001: load_data = {{16{dbus_rdata[15]}}, dbus_rdata[15:0]};  // LH  — sign-extend halfword
-    3'b010: load_data = dbus_rdata;                                 // LW  — full word, no extension
+    3'b010: load_data = dbus_rdata;                                 // LW  — full word
     3'b100: load_data = {24'b0, dbus_rdata[7:0]};                  // LBU — zero-extend byte
     3'b101: load_data = {16'b0, dbus_rdata[15:0]};                 // LHU — zero-extend halfword
 endcase
@@ -279,8 +269,7 @@ assign data = mem[addr[12:2]];
 
 - 2048 × 32-bit byte-addressable static RAM (SRAM)
 - **Synchronous write, asynchronous read**
-- 4-bit byte-lane write enable (`we[3:0]`) supports SB, SH, and SW natively without any external logic
-- The CPU generates the correct byte mask in `cpu_top.v`:
+- 4-bit byte-lane write enable (`we[3:0]`) supports SB, SH, and SW natively
 
 ```verilog
 assign dbus_we = mem_write ? (
@@ -294,16 +283,15 @@ assign dbus_we = mem_write ? (
 
 ### 3.3 Peripheral Subsystem
 
-<img width="1376" height="768" alt="image" src="https://github.com/user-attachments/assets/212fc6e3-9bfc-4106-9c31-93edbaa39ca0" />
+<img width="1376" height="768" alt="Peripheral Subsystem" src="https://github.com/user-attachments/assets/212fc6e3-9bfc-4106-9c31-93edbaa39ca0" />
 
-
-All peripherals follow an identical interface pattern: memory-mapped registers, a chip-select signal from `soc_top`'s address decoder, a 32-bit read-data bus, and an optional IRQ output to the interrupt controller. This regularity makes each peripheral a drop-in, independently testable IP block.
+All peripherals follow an identical interface pattern: memory-mapped registers, a chip-select signal from `soc_top`'s address decoder, a 32-bit read-data bus, and an optional IRQ output to the interrupt controller.
 
 ---
 
 #### UART (`uart.v`)
 
-Full-duplex UART with independent TX and RX state machines, configurable baud rate, mid-bit sampling for robust reception, and IRQ support.
+Full-duplex UART with independent TX and RX state machines, configurable baud rate, mid-bit sampling, and IRQ support.
 
 **Register Map (base `0x10000000`):**
 
@@ -314,11 +302,11 @@ Full-duplex UART with independent TX and RX state machines, configurable baud ra
 | `0x8` | RX_DATA | R | `[7:0]` = received byte; `[8]` = `rx_ready` flag |
 | `0xC` | BAUD_DIV | R/W | Baud rate divisor (default 868 → ~115200 baud @ 100 MHz) |
 
-**TX operation:** Loads a 10-bit shift register `{1'b1, data[7:0], 1'b0}` (stop bit, data LSB-first, start bit) and shifts out at `baud_div` clock intervals until all 10 bits are sent.
+**TX:** Loads a 10-bit shift register `{1'b1, data[7:0], 1'b0}` and shifts out at `baud_div` clock intervals.
 
-**RX operation:** A 4-state FSM (IDLE → START → DATA → STOP) detects the start bit falling edge, then samples each data bit at a `baud_div / 2` offset for reliable mid-bit sampling. The RX input is double-synchronised to `clk` to prevent metastability.
+**RX:** A 4-state FSM (IDLE → START → DATA → STOP) with mid-bit sampling. RX input is double-synchronised to prevent metastability.
 
-**IRQ:** Asserted when `rx_ready` is high (byte received) or when `tx_busy` goes low (transmitter idle and ready).
+**IRQ:** Asserted when `rx_ready` is high or when `tx_busy` goes low.
 
 ---
 
@@ -330,27 +318,25 @@ Programmable countdown timer with auto-reload capability and interrupt generatio
 
 | Offset | Name | R/W | Description |
 |--------|------|-----|-------------|
-| `0x0` | LOAD | R/W | Load value; writing this register also immediately reloads the counter |
+| `0x0` | LOAD | R/W | Load value; writing also immediately reloads the counter |
 | `0x4` | COUNT | R | Current counter value (read-only) |
 | `0x8` | CTRL | R/W | `[0]` = enable; `[1]` = auto-reload |
 | `0xC` | STATUS | R/W | `[0]` = timeout flag; write `1` to clear |
-
-**Operation:** When `CTRL[0] = 1`, the counter decrements on every clock edge. On reaching zero, `timeout` is asserted and drives `irq`. If `CTRL[1] = 1` (auto-reload), the counter reloads from `LOAD` and continues running indefinitely. If `CTRL[1] = 0`, the timer halts at zero until software re-enables it.
 
 ---
 
 #### Interrupt Controller (`intc.v`)
 
-A 4-source, priority-based interrupt aggregator that collects peripheral IRQs and presents a single `irq_to_cpu` signal to the processor.
+A 4-source, priority-based interrupt aggregator.
 
 **Register Map (base `0x40000000`):**
 
 | Offset | Name | R/W | Description |
 |--------|------|-----|-------------|
-| `0x0` | PENDING | R | `[3:0]` — one bit per source, latched on IRQ assertion, cleared by software |
-| `0x4` | ENABLE | R/W | `[3:0]` — interrupt enable mask (1 = enabled) |
-| `0x8` | CLEAR | W | Write `1` to the corresponding bit to clear PENDING |
-| `0xC` | PRIORITY | R/W | `[3:0]` — priority level (1 = high, 0 = low; default all high) |
+| `0x0` | PENDING | R | `[3:0]` — latched on IRQ assertion, cleared by software |
+| `0x4` | ENABLE | R/W | `[3:0]` — interrupt enable mask |
+| `0x8` | CLEAR | W | Write `1` to corresponding bit to clear PENDING |
+| `0xC` | PRIORITY | R/W | `[3:0]` — priority level (1 = high, 0 = low) |
 
 **IRQ Sources:**
 
@@ -361,11 +347,9 @@ A 4-source, priority-based interrupt aggregator that collects peripheral IRQs an
 | 2 | `irq_spi` |
 | 3 | `irq_i2c` |
 
-**Priority encode logic:**
 ```verilog
 wire [31:0] active   = pending & enable_reg;
 wire [31:0] high_pri = active & priority_reg;
-// High-priority sources take precedence; falls back to any active source if none are high-priority
 assign irq_to_cpu = |high_pri ? |high_pri : |active;
 ```
 
@@ -373,16 +357,14 @@ assign irq_to_cpu = |high_pri ? |high_pri : |active;
 
 #### GPIO (`gpio.v`)
 
-8-bit bidirectional GPIO with separate output and input registers.
+8-bit bidirectional GPIO. On the Boolean board, `gpio_out[7:0]` drives LEDs LD0–LD7 and `gpio_in[7:0]` reads slide switches SW0–SW7.
 
 **Register Map (base `0x20000000`):**
 
 | Offset | Name | R/W | Description |
 |--------|------|-----|-------------|
-| `0x0` | OUTPUT | R/W | Output data register → drives `gpio_out[7:0]` |
-| `0x4` | INPUT | R | Input data register ← samples `gpio_in[7:0]` |
-
-On the Boolean board, `gpio_out[7:0]` connects to LEDs LD0–LD7 and `gpio_in[7:0]` connects to slide switches SW0–SW7.
+| `0x0` | OUTPUT | R/W | Output data register → `gpio_out[7:0]` |
+| `0x4` | INPUT | R | Input data register ← `gpio_in[7:0]` |
 
 ---
 
@@ -409,139 +391,135 @@ Drives a dual-digit 7-segment display on the Boolean board. Converts a 4-bit nib
 ```
 riscv_soc/
 │
-├── README.md                        ← This file
+├── README.md
 ├── .gitignore
 │
 ├── rtl/                             ← Synthesisable Verilog/SystemVerilog
-│   ├── soc_top.v                    ← Top-level SoC integration (CPU + memories + peripherals)
-│   ├── soc_top_demo.v               ← Boolean board demo top (adds Seg7, switches)
+│   ├── soc_top.v                    ← Top-level SoC integration
+│   ├── soc_top_demo.v               ← Boolean board demo top (Seg7, switches)
 │   ├── cpu/
-│   │   ├── cpu_top.v                ← CPU datapath: all sub-modules wired together
-│   │   ├── pc.v                     ← Program counter with reset and next-PC mux
-│   │   ├── regfile.v                ← 32×32 register file (x0 hardwired to 0)
-│   │   ├── alu.v                    ← 32-bit ALU (10 operations + zero flag)
-│   │   ├── alu_ctrl.v               ← ALU control decoder (funct3/funct7 → alu_sel)
-│   │   ├── control.v                ← Main instruction decoder (opcode → 11 control signals)
-│   │   └── immgen.v                 ← Immediate generator (5 RV32I formats)
+│   │   ├── cpu_top.v
+│   │   ├── pc.v
+│   │   ├── regfile.v
+│   │   ├── alu.v
+│   │   ├── alu_ctrl.v
+│   │   ├── control.v
+│   │   └── immgen.v
 │   ├── memory/
-│   │   ├── imem.v                   ← 8 KB instruction ROM (async read, $readmemh init)
-│   │   └── dmem.v                   ← 8 KB byte-addressable data SRAM (byte-lane WE)
+│   │   ├── imem.v
+│   │   └── dmem.v
 │   └── peripheral/
-│       ├── uart.v                   ← Full-duplex UART, baud divisor, mid-bit RX, IRQ
-│       ├── spi.v                    ← SPI master (CPOL/CPHA modes, CS_N, IRQ)
-│       ├── i2c.v                    ← I2C master (START/STOP, byte TX, IRQ)
-│       ├── gpio.v                   ← 8-bit GPIO (output register + input register)
-│       ├── timer.v                  ← Countdown timer (auto-reload, IRQ)
-│       ├── intc.v                   ← 4-source priority interrupt controller
-│       └── seg7_ctrl.v              ← Dual-digit 7-segment display driver
+│       ├── uart.v
+│       ├── spi.v
+│       ├── i2c.v
+│       ├── gpio.v
+│       ├── timer.v
+│       ├── intc.v
+│       └── seg7_ctrl.v
 │
 ├── tb/                              ← SystemVerilog testbenches
-│   ├── tb_soc_top.sv                ← Full SoC integration test (CPU→bus→peripheral)
-│   ├── tb_cpu_top.sv                ← CPU multi-instruction program test
-│   ├── tb_alu.sv                    ← ALU: all 10 operations + zero flag
-│   ├── tb_regfile.sv                ← RegFile: write/read, x0, simultaneous rs1/rs2
-│   ├── tb_control.sv                ← Control: all 9 opcodes → 11-signal decode
-│   ├── tb_immgen.sv                 ← ImmGen: all 5 formats + sign extension
-│   ├── tb_uart.sv                   ← UART: TX shift-out, RX sampling, IRQ
-│   ├── tb_gpio.sv                   ← GPIO: output write, input read
-│   ├── tb_timer.sv                  ← Timer: load, countdown, IRQ, auto-reload
-│   ├── tb_intc.sv                   ← INTC: multi-source, enable mask, priority
-│   ├── tb_spi.sv                    ← SPI: frame generation, CPOL/CPHA
-│   ├── tb_i2c.sv                    ← I2C: start/stop, byte transmit protocol
-│   └── run_sim.sh                   ← VCS batch runner (compiles + runs all TBs)
+│   ├── tb_soc_top.sv
+│   ├── tb_cpu_top.sv
+│   ├── tb_alu.sv
+│   ├── tb_regfile.sv
+│   ├── tb_control.sv
+│   ├── tb_immgen.sv
+│   ├── tb_uart.sv
+│   ├── tb_gpio.sv
+│   ├── tb_timer.sv
+│   ├── tb_intc.sv
+│   ├── tb_spi.sv
+│   ├── tb_i2c.sv
+│   └── run_sim.sh
 │
 ├── sim/
 │   └── filelist/
-│       ├── rtl.f                    ← VCS / Vivado XSim RTL filelist
-│       ├── tb.f                     ← Testbench filelist
-│       └── rtl_nclaunch.f           ← Cadence NCLaunch filelist (wire-fixed RTL)
+│       ├── rtl.f
+│       ├── tb.f
+│       └── rtl_nclaunch.f
 │
 ├── fpga/                            ← Xilinx Vivado FPGA flow
 │   ├── constraints/
-│   │   ├── soc_top_boolean.xdc      ← Pin + timing constraints for Boolean board
-│   │   ├── soc_top_demo.xdc         ← Demo top constraints
-│   │   └── riscv_soc.xdc            ← Base project constraints
+│   │   ├── soc_top_boolean.xdc
+│   │   ├── soc_top_demo.xdc
+│   │   └── riscv_soc.xdc
 │   ├── scripts/
-│   │   ├── vivado_riscv_soc_v2.tcl  ← Full build: synth → impl → bitstream
-│   │   ├── run_impl.tcl             ← Implementation only
-│   │   └── run_reports.tcl          ← Generate all Vivado reports
+│   │   ├── vivado_riscv_soc_v2.tcl
+│   │   ├── run_impl.tcl
+│   │   └── run_reports.tcl
 │   ├── reports/
-│   │   ├── utilization.rpt          ← LUT, FF, BRAM, IO utilisation
-│   │   ├── timing.rpt               ← Timing summary (WNS/TNS)
-│   │   ├── power.rpt                ← 68 mW total, 0 mW dynamic
-│   │   ├── drc.rpt                  ← 0 DRC violations
-│   │   └── clock.rpt                ← Clock primitive utilisation
+│   │   ├── utilization.rpt
+│   │   ├── timing.rpt
+│   │   ├── power.rpt
+│   │   ├── drc.rpt
+│   │   └── clock.rpt
 │   └── bitstream/
-│       ├── soc_top_demo.bit         ← FPGA bitstream (program with HW Manager)
-│       └── soc_top_demo.bin         ← Binary format bitstream
+│       ├── soc_top_demo.bit
+│       └── soc_top_demo.bin
 │
 ├── synthesis/
 │   ├── genus/                       ← Cadence Genus logic synthesis (ASIC)
 │   │   ├── rtl/                     ← Wire-fixed RTL for Cadence compatibility
-│   │   │   ├── soc_top.v            ← Extended SoC (adds SPI, I2C, Seg7)
+│   │   │   ├── soc_top.v
 │   │   │   ├── cpu/
 │   │   │   ├── memory/
 │   │   │   └── peripheral/
 │   │   ├── scripts/
-│   │   │   ├── genus_run.tcl        ← Complete Genus synthesis script
-│   │   │   └── constraints.sdc      ← 10 ns clock, I/O delays, false paths
+│   │   │   ├── genus_run.tcl
+│   │   │   └── constraints.sdc
 │   │   ├── reports/
-│   │   │   ├── area.rpt             ← Cell area, combinational vs sequential
-│   │   │   ├── timing.rpt           ← WNS, critical path
-│   │   │   ├── power.rpt            ← Leakage + dynamic power
-│   │   │   └── gates.rpt            ← Gate count by type
+│   │   │   ├── area.rpt
+│   │   │   ├── timing.rpt
+│   │   │   ├── power.rpt
+│   │   │   └── gates.rpt
 │   │   └── netlist/
-│   │       ├── soc_top_netlist.v    ← Gate-level Verilog netlist
-│   │       ├── soc_top.sdc          ← Propagated timing constraints
-│   │       └── soc_top.sdf          ← Standard Delay Format annotation
+│   │       ├── soc_top_netlist.v
+│   │       ├── soc_top.sdc
+│   │       └── soc_top.sdf
 │   │
 │   └── innovus/                     ← Cadence Innovus Place & Route
-│       ├── scripts/                 ← Complete PnR flow TCL scripts
-│       ├── reports/                 ← Post-route timing, power, area reports
+│       ├── scripts/
+│       ├── reports/
 │       └── results/
-│           ├── final.gds            ← GDSII layout output
-│           └── final.def            ← DEF placement output
+│           ├── final.gds
+│           └── final.def
 │
 ├── docs/
 │   └── images/
-│       ├── simulation/              ← VCS/Verdi/NCLaunch waveform screenshots
-│       ├── fpga/                    ← Schematic, device view, Vivado report screenshots
-│       ├── synthesis/               ← Genus report screenshots
-│       ├── pnr/                     ← Floorplan, placement, CTS, route, 3D view, GDSII
-│       └── board/                   ← Hardware demo photos and UART terminal screenshots
+│       ├── simulation/
+│       ├── fpga/
+│       ├── synthesis/
+│       ├── pnr/
+│       └── board/
 │
 └── sw/                              ← Embedded RISC-V assembly software
-    ├── demo.S                       ← Assembly: UART print + GPIO mirror + Seg7 display
-    ├── link.ld                      ← Linker script (IMEM @ 0x0, DMEM @ 0x2000)
-    ├── Makefile                     ← riscv64-unknown-elf toolchain build rules
-    ├── bin2mem.py                   ← ELF binary → $readmemh hex format converter
-    └── program.mem                  ← Pre-built hex image ready for imem.v
+    ├── demo.S
+    ├── link.ld
+    ├── Makefile
+    ├── bin2mem.py
+    └── program.mem
 ```
 
 ---
 
 ## 5. Complete Design Flow
 
-<img width="1440" height="1820" alt="image" src="https://github.com/user-attachments/assets/ecf5653c-3b18-494f-94fc-88ebcae6ba1c" />
+<img width="1440" height="1820" alt="Design Flow" src="https://github.com/user-attachments/assets/ecf5653c-3b18-494f-94fc-88ebcae6ba1c" />
 
 ### Why Two RTL Versions?
-
-The design exists in two parallel versions to accommodate tool-specific requirements:
 
 | Version | Location | Used For | Key Difference |
 |---------|----------|----------|----------------|
 | Original | `rtl/` | Vivado, VCS/Verdi, XSim | Uses SystemVerilog `logic` net type |
 | Wire-fixed | `synthesis/genus/rtl/` | Cadence Genus, NCLaunch | All `logic` replaced with `wire` |
 
-Cadence tools operating in Verilog-2001 mode do not accept `logic` as a net type. The wire-fixed version also includes the additional peripherals (SPI, I2C, Seg7) for the complete ASIC demonstration. The functional RTL logic is **identical** between both versions — only the net type declarations differ.
+Cadence tools in Verilog-2001 mode do not accept `logic` as a net type. The wire-fixed version also includes the additional peripherals (SPI, I2C, Seg7) for the complete ASIC demonstration. The functional RTL logic is **identical** between both versions.
 
 ---
 
 ## 6. Simulation
 
 ### 6.1 Testbench Coverage
-
-Twelve individual testbenches cover every module from the basic building blocks up to the full integrated SoC:
 
 | Testbench | Module Tested | What Is Verified |
 |-----------|---------------|-----------------|
@@ -578,16 +556,13 @@ vcs -full64 -sverilog -debug_access+all +fsdbfile+dump.fsdb \
 ./simv_soc -gui
 ```
 
-The `run_sim.sh` script iterates over all 12 testbenches, compiles each one against the RTL filelist, executes the simulation, and reports PASS or FAIL based on the `$finish` status.
-
 ---
 
 ### 6.3 Cadence NCLaunch
 
-NCLaunch was used as a secondary simulation platform for cross-validation. Because Cadence tools do not accept `logic` as a net type in Verilog mode, the `rtl_nclaunch.f` filelist points to the wire-fixed RTL under `synthesis/genus/rtl/`.
+NCLaunch uses the wire-fixed RTL under `synthesis/genus/rtl/` via the `rtl_nclaunch.f` filelist.
 
 ```bash
-# Launch the NCLaunch GUI
 nclaunch &
 # Steps in the GUI:
 # 1. Add filelist: sim/filelist/rtl_nclaunch.f
@@ -596,34 +571,28 @@ nclaunch &
 # 4. Run → Simulate
 ```
 
-The key net-type change made for NCLaunch compatibility:
+Key net-type change for NCLaunch compatibility:
+
 ```verilog
-// Original rtl/ (Vivado / VCS):     // Wire-fixed synthesis/genus/rtl/ (Cadence):
-logic branch_taken;             →    wire branch_taken;
-logic [31:0] alu_result;        →    wire [31:0] alu_result;
-// reg declarations are unchanged — both tools accept reg
+// Original rtl/ (Vivado / VCS):        // Wire-fixed synthesis/genus/rtl/ (Cadence):
+logic branch_taken;               →     wire branch_taken;
+logic [31:0] alu_result;          →     wire [31:0] alu_result;
 ```
 
 ---
 
 ### 6.4 Vivado XSim
 
-Vivado's integrated simulator was used during iterative FPGA development for rapid design closure:
-
-1. In Vivado, go to **Project** → **Simulation Sources** → add all files from `rtl/` and `tb/tb_soc_top.sv`
+1. In Vivado, go to **Project → Simulation Sources** → add all files from `rtl/` and `tb/tb_soc_top.sv`
 2. Set `tb_soc_top` as the simulation top module
 3. Click **Run Behavioral Simulation**
 4. Inspect waveforms in the XSim GUI
-
-> Add waveform screenshots to [`docs/images/simulation/`](docs/images/simulation/)
 
 ---
 
 ## 7. FPGA Implementation (Vivado)
 
-### 7.1 Target Board
-
-**Digilent Spartan-7 Boolean Board**
+### 7.1 Target Board — Digilent Spartan-7 Boolean
 
 | Parameter | Value |
 |-----------|-------|
@@ -643,18 +612,13 @@ Vivado's integrated simulator was used during iterative FPGA development for rap
 ```bash
 # Non-interactive batch build (synth → impl → bitstream)
 vivado -mode batch -source fpga/scripts/vivado_riscv_soc_v2.tcl
-
-# Or from within the Vivado Tcl Console:
-source fpga/scripts/vivado_riscv_soc_v2.tcl
 ```
-
-The TCL build script executes the following steps in sequence:
 
 | Step | Command | Action |
 |------|---------|--------|
 | 1 | `read_verilog` | Load all RTL sources from `rtl/` |
 | 2 | `read_xdc` | Load `soc_top_boolean.xdc` pin + timing constraints |
-| 3 | `synth_design -top soc_top_demo` | Logic synthesis — maps RTL to LUTs and FFs |
+| 3 | `synth_design -top soc_top_demo` | Logic synthesis |
 | 4 | `opt_design` | Netlist-level optimisation |
 | 5 | `place_design` | Place all standard cells and BRAMs |
 | 6 | `phys_opt_design` | Physical optimisation (timing-driven) |
@@ -666,10 +630,7 @@ The TCL build script executes the following steps in sequence:
 ### 7.3 Constraints (`soc_top_boolean.xdc`)
 
 ```tcl
-# Primary clock: 100 MHz system clock
 create_clock -period 10.000 -name sys_clk [get_ports clk]
-
-# I/O timing budget
 set_input_delay  -clock sys_clk 2.0 [all_inputs]
 set_output_delay -clock sys_clk 2.0 [all_outputs]
 ```
@@ -689,21 +650,17 @@ set_output_delay -clock sys_clk 2.0 [all_outputs]
 ### 7.4 Programming the Board
 
 ```
-1. Connect the Boolean board to your PC via the USB programming port
-2. Open Vivado → Hardware Manager → Open Target → Auto Connect
-3. Right-click the target device → Program Device
+1. Connect the Boolean board via USB programming port
+2. Vivado → Hardware Manager → Open Target → Auto Connect
+3. Right-click target device → Program Device
 4. Browse to: fpga/bitstream/soc_top_demo.bit
 5. Click Program
-6. The demo program begins executing immediately after programming completes
 ```
 
-The demo program (`sw/demo.S`) performs the following in a continuous loop:
-
-- Prints `"RISCV SOC OK\r\n"` over UART at 115200 baud on first boot
-- Mirrors the eight slide-switch states to the corresponding eight LEDs in real time
+The demo program (`sw/demo.S`) runs a continuous loop that:
+- Prints `"RISCV SOC OK\r\n"` over UART at 115200 baud on boot
+- Mirrors slide-switch states to the eight LEDs in real time
 - Writes the switch binary value to the dual 7-segment display
-
-> Add board demo photos and UART terminal screenshots to [`docs/images/board/`](docs/images/board/)
 
 ---
 
@@ -711,7 +668,7 @@ The demo program (`sw/demo.S`) performs the following in a continuous loop:
 
 ### 8.1 Setup
 
-The wire-fixed RTL under `synthesis/genus/rtl/` is required. Obtain a standard-cell library (e.g., a TSMC-compatible slow-corner `.lib`) and place it at `synthesis/genus/lib/slow.lib` before running.
+Place a standard-cell library (slow-corner `.lib`) at `synthesis/genus/lib/slow.lib`, then:
 
 ```bash
 cd synthesis/genus/
@@ -723,14 +680,14 @@ genus -batch -files scripts/genus_run.tcl
 ### 8.2 Synthesis Script Walkthrough
 
 ```tcl
-# ── 1. Library and RTL search paths ──────────────────────────────────
+# 1. Library and RTL search paths
 set_db init_lib_search_path {./lib}
 set_db init_hdl_search_path {./rtl}
 
-# ── 2. Standard cell library ─────────────────────────────────────────
+# 2. Standard cell library
 read_libs slow.lib
 
-# ── 3. RTL read order: leaves first, top last (bottom-up elaboration) ─
+# 3. RTL read order: leaves first, top last
 read_hdl cpu/pc.v
 read_hdl cpu/regfile.v
 read_hdl cpu/alu.v
@@ -749,25 +706,25 @@ read_hdl peripheral/intc.v
 read_hdl peripheral/seg7_ctrl.v
 read_hdl soc_top.v
 
-# ── 4. Elaborate and check ────────────────────────────────────────────
+# 4. Elaborate and check
 elaborate soc_top
-check_design -unresolved    # Confirms zero black boxes
+check_design -unresolved
 
-# ── 5. Timing constraints ─────────────────────────────────────────────
+# 5. Timing constraints
 read_sdc ./constraints.sdc
 
-# ── 6. Three-pass synthesis ───────────────────────────────────────────
-syn_generic                 # Technology-independent Boolean optimisation
-syn_map                     # Map to standard cells from slow.lib
-syn_opt                     # Post-mapping timing + area optimisation
+# 6. Three-pass synthesis
+syn_generic
+syn_map
+syn_opt
 
-# ── 7. Reports ───────────────────────────────────────────────────────
+# 7. Reports
 report_timing > reports/timing.rpt
 report_power  > reports/power.rpt
 report_area   > reports/area.rpt
 report_gates  > reports/gates.rpt
 
-# ── 8. Output netlist and timing files ───────────────────────────────
+# 8. Output netlist and timing files
 write_hdl > netlist/soc_top_netlist.v
 write_sdf > netlist/soc_top.sdf
 write_sdc > netlist/soc_top.sdc
@@ -778,26 +735,17 @@ write_sdc > netlist/soc_top.sdc
 ### 8.3 Timing Constraints (`constraints.sdc`)
 
 ```tcl
-# 100 MHz target clock (10.0 ns period)
 create_clock -name clk -period 10.0 [get_ports clk]
-
-# Clock quality modelling
 set_clock_transition  0.1  [get_clocks clk]
 set_clock_uncertainty 0.15 [get_clocks clk]
-
-# I/O delay constraints
 set_input_delay  2.0 -clock clk [remove_from_collection [all_inputs] [get_ports clk]]
 set_output_delay 2.0 -clock clk [all_outputs]
-
-# Drive strength and output load models
 set_driving_cell -lib_cell BUFX4 [all_inputs]
 set_load          0.05            [all_outputs]
-
-# Reset is asynchronous — exclude from timing analysis
 set_false_path -from [get_ports rst_n]
 ```
 
-This constraint setup leaves **7.85 ns** of combinational logic budget per cycle: `10 ns − 2 ns (input delay) − 0.15 ns (clock uncertainty)`.
+This leaves **7.85 ns** of combinational logic budget per cycle: `10 ns − 2 ns (input delay) − 0.15 ns (clock uncertainty)`.
 
 ---
 
@@ -805,21 +753,19 @@ This constraint setup leaves **7.85 ns** of combinational logic budget per cycle
 
 | Output File | Location | Description |
 |-------------|----------|-------------|
-| `area.rpt` | `synthesis/genus/reports/` | Total cell area, combinational vs sequential breakdown |
-| `timing.rpt` | `synthesis/genus/reports/` | Worst negative slack (WNS), critical path trace |
-| `power.rpt` | `synthesis/genus/reports/` | Leakage power + dynamic power by component |
+| `area.rpt` | `synthesis/genus/reports/` | Total cell area, combinational vs sequential |
+| `timing.rpt` | `synthesis/genus/reports/` | WNS, critical path trace |
+| `power.rpt` | `synthesis/genus/reports/` | Leakage + dynamic power |
 | `gates.rpt` | `synthesis/genus/reports/` | Gate count by cell type |
 | `soc_top_netlist.v` | `synthesis/genus/netlist/` | Gate-level Verilog netlist (input to Innovus) |
 | `soc_top.sdc` | `synthesis/genus/netlist/` | Propagated SDC constraints for PnR |
 | `soc_top.sdf` | `synthesis/genus/netlist/` | Standard Delay Format timing annotation |
 
-> Add Genus report screenshots to [`docs/images/synthesis/`](docs/images/synthesis/)
-
 ---
 
 ## 9. Cadence Innovus Place & Route
 
-The post-synthesis netlist (`soc_top_netlist.v`) and propagated constraints (`soc_top.sdc`) from Genus feed directly into the Innovus PnR flow.
+The post-synthesis netlist and propagated constraints from Genus feed directly into Innovus.
 
 ### 9.1 Complete PnR Flow
 
@@ -832,8 +778,6 @@ read_sdc       synthesis/genus/netlist/soc_top.sdc
 init_design
 ```
 
----
-
 #### Step 2 — Floorplanning
 
 ```tcl
@@ -841,23 +785,14 @@ floorPlan -r 0.6 0.75 5.0 5.0 5.0 5.0
 # Core utilisation: 60%, Aspect ratio: 0.75, Core margins: 5 µm on all sides
 ```
 
-The floorplan defines the die area, places I/O pads on the perimeter, and creates VDD/GND power rings around the core boundary.
-
----
-
 #### Step 3 — Power Planning
 
 ```tcl
-# Power rings around core
 addRing  -nets {VDD GND} -width 2 -spacing 1 \
          -layer {top M6 bottom M6 left M5 right M5}
-
-# Vertical power stripes across the core
 addStripe -nets {VDD GND} -width 1 -spacing 0.5 \
           -layer M5 -direction vertical
 ```
-
----
 
 #### Step 4 — Placement (Pre-CTS)
 
@@ -865,10 +800,6 @@ addStripe -nets {VDD GND} -width 1 -spacing 0.5 \
 place_design
 optDesign -preCTS -hold
 ```
-
-Standard cells are placed to minimise wire length and meet timing targets before clock tree insertion.
-
----
 
 #### Step 5 — Clock Tree Synthesis (CTS)
 
@@ -878,10 +809,6 @@ clockDesign
 optDesign -postCTS -hold
 ```
 
-CTS inserts clock buffers and inverters to distribute the clock to all 66,912 flip-flops with minimal **skew**. The pre-CTS and post-CTS views clearly show the inserted buffer tree.
-
----
-
 #### Step 6 — Routing
 
 ```tcl
@@ -889,15 +816,11 @@ routeDesign
 optDesign -postRoute
 ```
 
-Global routing assigns nets to routing regions; detailed routing assigns specific tracks and vias. Timing-driven routing prioritises critical-path nets.
-
----
-
 #### Step 7 — Verification and GDSII Export
 
 ```tcl
-verifyDRC          # Confirm 0 design-rule violations
-verifyConnectivity # Confirm all nets are fully connected
+verifyDRC
+verifyConnectivity
 streamOut synthesis/innovus/results/final.gds \
          -mapFile gds.map -units 1000
 ```
@@ -906,17 +829,17 @@ streamOut synthesis/innovus/results/final.gds \
 
 ### 9.2 PnR Visual Documentation
 
-> Add screenshots to [`docs/images/pnr/`](docs/images/pnr/)
-
 | Screenshot | Flow Stage | What to Capture |
 |-----------|-----------|----------------|
 | `innovus_floorplan.png` | Post-floorplan | Die outline, I/O pad placement, power rings |
-| `innovus_placement.png` | Post-placement | Standard cell density heatmap across core |
+| `innovus_placement.png` | Post-placement | Standard cell density heatmap |
 | `innovus_pre_cts.png` | Before CTS | Clock net as a single high-fanout wire |
-| `innovus_post_cts.png` | After CTS | Clock tree with all inserted buffer stages visible |
+| `innovus_post_cts.png` | After CTS | Clock tree with all inserted buffer stages |
 | `innovus_routed.png` | Post-route | Fully routed metal layers (M1–M9) |
-| `innovus_3d.png` | 3D view | Stacked metal layers rendered in 3D perspective |
+| `innovus_3d.png` | 3D view | Stacked metal layers rendered in 3D |
 | `innovus_gdsii.png` | GDSII | Final layout (open in KLayout or Innovus GDSII viewer) |
+
+All screenshots are stored under [`docs/images/pnr/`](docs/images/pnr/).
 
 ---
 
@@ -938,15 +861,9 @@ streamOut synthesis/innovus/results/final.gds \
 | DRC violations | **0** | — | ✓ |
 | Timing violations | **0** | — | ✓ |
 
-> *The Vivado utilisation report shows 0 LUTs/FFs because `soc_top_demo` infers memories as BRAM primitives and drives outputs directly through OBUF buffers. The design routes correctly and operates on hardware. See `fpga/reports/utilization.rpt` for the full primitive breakdown.*
+> *The Vivado utilisation report shows 0 LUTs/FFs because `soc_top_demo` infers memories as BRAM primitives and drives outputs through OBUF buffers. The design routes correctly and operates on hardware. See `fpga/reports/utilization.rpt` for the full primitive breakdown.*
 
-**Timing (from `fpga/reports/timing.rpt`):**
-
-- Device: `7s50-csga324-1`, Speed grade: -1
-- Clock: `sys_clk` at 12 MHz (83.333 ns period) — conservative, significant positive slack
-- Multi-corner analysis: Slow and Fast corners, pessimism removal enabled
-- All 12 timing checks passed — no unconstrained endpoints, no combinational loops, no latch loops, no multi-clock issues
-- Constraint quality: 0 pins with missing input delay, 0 pins with missing output delay, 0 unconstrained internal endpoints — **fully constrained design**
+**Timing:** Device `7s50-csga324-1`, speed grade -1. Clock `sys_clk` at 12 MHz. Multi-corner analysis (Slow + Fast), pessimism removal enabled. All 12 timing checks passed — fully constrained design with 0 unconstrained endpoints, 0 combinational loops, and 0 multi-clock issues.
 
 ---
 
@@ -972,19 +889,19 @@ streamOut synthesis/innovus/results/final.gds \
 
 **Key observations:**
 
-The **−0.4% area delta** between wireload synthesis and physical layout is exceptional — a sub-1% prediction error confirms the technology library wireload model is well-calibrated.
+The **−0.4% area delta** between wireload synthesis and physical layout confirms the technology library wireload model is well-calibrated.
 
-Core utilisation at **64.47%** sits squarely in the optimal 60–70% window, providing adequate whitespace for routing, hold-fix buffers, and any post-signoff ECO changes without requiring a refloorplan.
+Core utilisation at **64.47%** sits in the optimal 60–70% window, providing adequate whitespace for routing, hold-fix buffers, and post-signoff ECO changes.
 
-The **+14.5% cell count increase** from synthesis to PnR is entirely expected and healthy — it represents CTS buffers inserted to drive the 66,912-flop clock network plus minimum-strength hold-fix buffers. Despite adding ~20k cells, area remains flat, confirming these are small-drive-strength buffers.
+The **+14.5% cell count increase** from synthesis to PnR represents CTS buffers for the 66,912-flop clock network plus hold-fix buffers. Despite adding ~20k cells, area remains flat.
 
-Register power at **98.41%** of total is expected for a sequential-heavy, full-scan design. There is no memory macro, latch, or pad-ring power — correct for a core-level implementation.
+Register power at **98.41%** of total is expected for a sequential-heavy, full-scan design with no memory macros or pad-ring power.
 
 ---
 
 ## 11. Embedded Software
 
-The RISC-V assembly program in `sw/demo.S` exercises all major SoC peripherals and confirms end-to-end hardware functionality after FPGA programming.
+The RISC-V assembly program in `sw/demo.S` exercises all major SoC peripherals and confirms end-to-end hardware functionality.
 
 ```asm
     .section .text
@@ -994,33 +911,28 @@ _start:
     li   t0, 0x10000000    # UART base address
     li   t1, 0x20000000    # GPIO base address
     li   t2, 0x20000100    # SEG7 base address
-
     la   a0, msg           # Load address of message string
 
-    # ── Print "RISCV SOC OK\r\n" over UART ───────────────────────
 print_loop:
     lb   a1, 0(a0)         # Load next character byte
-    beqz a1, main_loop     # Null terminator reached → jump to main loop
+    beqz a1, main_loop     # Null terminator → jump to main loop
 wait_tx:
-    lw   a2, 4(t0)         # Read UART STATUS register (offset 0x4)
+    lw   a2, 4(t0)         # Read UART STATUS register
     andi a2, a2, 1         # Isolate tx_busy bit [0]
     bnez a2, wait_tx       # Spin while tx_busy = 1
-    sw   a1, 0(t0)         # Write character to UART TX_DATA (offset 0x0)
+    sw   a1, 0(t0)         # Write character to UART TX_DATA
     addi a0, a0, 1         # Advance string pointer
     j    print_loop
 
-    # ── Main loop: mirror switches → LEDs and Seg7 ───────────────
 main_loop:
-    lw   a0, 4(t1)         # Read GPIO_IN (switch states) at offset 0x4
-    sw   a0, 0(t1)         # Write GPIO_OUT (LED states) at offset 0x0
+    lw   a0, 4(t1)         # Read GPIO_IN (switch states)
+    sw   a0, 0(t1)         # Write GPIO_OUT (LED states)
     sw   a0, 0(t2)         # Write switch value to 7-segment display
     j    main_loop
 
 msg:
     .string "RISCV SOC OK\r\n"
 ```
-
----
 
 ### Building from Source
 
@@ -1030,11 +942,11 @@ make
 # Produces: demo.elf, demo.bin, program.mem
 ```
 
-**Toolchain:** `riscv64-unknown-elf-as` (assembler), `riscv64-unknown-elf-ld` (linker), `riscv64-unknown-elf-objcopy` (binary extraction).
+**Toolchain:** `riscv64-unknown-elf-as`, `riscv64-unknown-elf-ld`, `riscv64-unknown-elf-objcopy`.
 
-**Linker script (`link.ld`):** Places `.text` (code) at `0x00000000` (IMEM base) and `.data` at `0x00002000` (DMEM base), matching the SoC address map exactly.
+**Linker script (`link.ld`):** Places `.text` at `0x00000000` (IMEM base) and `.data` at `0x00002000` (DMEM base).
 
-**`bin2mem.py`:** Converts the raw binary output to `$readmemh`-compatible hex format — 4 bytes per line, little-endian word order — for direct use with `imem.v`'s `$readmemh("program.mem", mem)`.
+**`bin2mem.py`:** Converts raw binary to `$readmemh`-compatible hex format — 4 bytes per line, little-endian word order.
 
 ---
 
@@ -1044,49 +956,48 @@ make
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| Xilinx Vivado | 2022.2 or later | FPGA synthesis, implementation, bitstream generation |
-| Synopsys VCS | Latest available | RTL simulation with coverage |
-| Synopsys Verdi | Latest available | Interactive waveform debug and signal tracing |
-| Cadence NCLaunch | Latest available | Cadence-native simulation environment |
-| Cadence Genus | Latest available | ASIC logic synthesis |
-| Cadence Innovus | Latest available | ASIC place & route, GDSII generation |
+| Xilinx Vivado | 2022.2 or later | FPGA synthesis, implementation, bitstream generation, XSim |
+| Synopsys VCS | Latest | RTL simulation with coverage |
+| Synopsys Verdi | Latest | Interactive waveform debug |
+| Cadence NCLaunch | Latest | Cadence-native simulation |
+| Cadence Genus | Latest | ASIC logic synthesis |
+| Cadence Innovus | Latest | ASIC place & route, GDSII generation |
 | RISC-V GNU Toolchain | riscv64-unknown-elf-2023 | Assembly, linking, binary conversion |
-| Python 3 | 3.6 or later | `bin2mem.py` ELF-to-hex conversion utility |
+| Python 3 | 3.6 or later | `bin2mem.py` ELF-to-hex conversion |
 
----
-
-### Step-by-Step Reproduction
+### Step-by-Step
 
 ```bash
-# ── 1. Clone the repository ───────────────────────────────────────────
+# 1. Clone the repository
 git clone https://github.com/Arunachalam-212223060022/riscv_soc.git
 cd riscv_soc
 
-# ── 2. Build the embedded software (generates program.mem) ────────────
+# 2. Build the embedded software (generates program.mem)
 cd sw && make && cd ..
 
-# ── 3. Run all simulations (VCS — prints PASS/FAIL for all 12 TBs) ───
+# 3. Run all simulations (VCS — prints PASS/FAIL for all 12 TBs)
 bash tb/run_sim.sh
 
-# ── 4. Build the FPGA bitstream (Vivado) ─────────────────────────────
+# 4. Build the FPGA bitstream (Vivado)
 vivado -mode batch -source fpga/scripts/vivado_riscv_soc_v2.tcl
 
-# ── 5. Program the Boolean board ─────────────────────────────────────
+# 5. Program the Boolean board
 # Open Vivado Hardware Manager, connect to board, program soc_top_demo.bit
 
-# ── 6. Run Cadence Genus synthesis ───────────────────────────────────
+# 6. Run Cadence Genus synthesis
 cd synthesis/genus/
 # Place slow.lib in synthesis/genus/lib/ first
 genus -batch -files scripts/genus_run.tcl
 cd ../..
 
-# ── 7. Run Cadence Innovus place & route ─────────────────────────────
+# 7. Run Cadence Innovus place & route
 cd synthesis/innovus/
 innovus -batch -files scripts/pnr_flow.tcl
 cd ../..
 
-# Outputs: synthesis/innovus/results/final.gds (GDSII)
-#          synthesis/innovus/results/final.def (DEF)
+# Outputs:
+#   synthesis/innovus/results/final.gds  (GDSII)
+#   synthesis/innovus/results/final.def  (DEF)
 ```
 
 ---
@@ -1111,17 +1022,17 @@ cd ../..
 
 <div align="center">
 
-**Institution:** Saveetha Engineering College
-**Department:** Electronics and Communication Engineering
+**Institution:** Saveetha Engineering College  
+**Department:** Electronics and Communication Engineering  
 **Course:** VLSI Design / Capstone Project
 
-| Name | Roll Number | Contribution |
-|------|-------------|-------------|
-| Arunachalam P | 212223060022 | RTL design, simulation, FPGA implementation, Genus synthesis, Innovus PnR, embedded software |
-| Charan PG | 212223060033 | RTL design, simulation, verification, FPGA implementation, ASIC flow |
-
-**Project Title:**
+**Project Title:**  
 *Design and Implementation of a RISC-V Soft-Core SoC on FPGA with Integrated Peripheral Subsystems and Full ASIC Back-End Flow for Embedded Applications*
+
+| Name | Roll Number | Contribution | LinkedIn |
+|------|-------------|-------------|----------|
+| Arunachalam P | 212223060022 | RTL design, simulation, FPGA implementation, Genus synthesis, Innovus PnR, embedded software | [![LinkedIn](https://img.shields.io/badge/LinkedIn-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/arunachalam-p-12445b290/) |
+| Charan PG | 212223060033 | RTL design, simulation, verification, FPGA implementation, ASIC flow | [![LinkedIn](https://img.shields.io/badge/LinkedIn-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/charan-pg-674580404/) |
 
 </div>
 
